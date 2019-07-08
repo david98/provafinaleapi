@@ -50,8 +50,11 @@ void ht_init(struct hash_table *ht, long int initial_size){
 long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round){
     long int a = djb2(key);
     long int b = sdbm(key);
-    long int index = (a + double_hashing_round * (b + 1))%(ht->size);
-    return index < 0 ? -index : index;
+    long int value = (a + double_hashing_round * (b + 1));
+    value = value < 0 ? -value : value;
+    long int index = value & (ht->size - 1);
+
+    return index;
 }
 
 void ht_rehash(struct hash_table *ht, struct ht_item **old_array, long int old_size){
@@ -115,20 +118,13 @@ void ht_insert(struct hash_table *ht, char *key, void *elem){
 
     long int index = ht_get_index(ht, item->key, 0);
 
-    if (ht->array[index] == NULL){
-        ht->array[index] = item;
-    } else if (strcmp(item->key, ht->array[index]->key) == 0){
-        // the key is the same, we replace the item in the table with the new one
-        free(ht->array[index]);
-        ht->array[index] = item;
-    } else {
-        int i = 1;
-        while (ht->array[index] != NULL) {
-            index = ht_get_index(ht, item->key, i);
-            i++;
-        }
-        ht->array[index] = item;
+    int i = 1;
+    while (ht->array[index] != NULL && strcmp(item->key, ht->array[index]->key) != 0) {
+        index = ht_get_index(ht, item->key, i);
+        i++;
     }
+    ht->array[index] = item;
+
 }
 
 void* ht_get(struct hash_table *ht, char *key){
@@ -136,14 +132,13 @@ void* ht_get(struct hash_table *ht, char *key){
     struct ht_item *item = ht->array[index];
     int i = 1;
     while (i < ht->size && item != NULL) {
-        index = ht_get_index(ht, key, i);
-        item = ht->array[index];
         if (strcmp(item->key, key) == 0){
             return item->value;
         }
+        index = ht_get_index(ht, key, i);
+        item = ht->array[index];
         i++;
     }
-
     return NULL;
 }
 
@@ -151,15 +146,16 @@ int main() {
 
     struct hash_table ht;
 
-    ht_init(&ht, 64);
+    ht_init(&ht, 256);
 
     ht_insert(&ht, "FYFYFYEzFYFYFYEzFYEzFYFYFYFYFY", "ciao");
     ht_insert(&ht, "EzFYEzEzEzFYFYFYFYEzEzFYEzEzFY", "ciao2");
+    ht_insert(&ht, "EzFYEzEzEzFYFYFYFYEzEzFYEzEzFY", "ciao3");
 
-    void *elem = ht_get(&ht, "caaaav");
+    void *elem = ht_get(&ht, "EzFYEzEzEzFYFYFYFYEzEzFYEzEzFY");
     if (elem != NULL) {
         char *string = (char *) elem;
-        printf("%s", string);
+        printf("\n\n%s", string);
     }
     return 0;
 }
