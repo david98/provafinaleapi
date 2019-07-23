@@ -15,6 +15,10 @@
 
 #define MAX_PARAMETER_SIZE 100
 
+#define MAX_DOUBLE_HASHING_ROUNDS 15
+
+static const int dummy = 1;
+
 unsigned long
 djb2(unsigned char *str)
 {
@@ -42,8 +46,11 @@ sdbm(str)
 
 struct ht_item{
     char *key;
+    long int djb2_hash;
     void *value;
 };
+
+static struct ht_item HT_DELETED_ITEM = {NULL, 0, NULL};
 
 struct hash_table{
     struct ht_item **array;
@@ -70,25 +77,7 @@ long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round
     return index;
 }
 
-void ht_rehash(struct hash_table *ht, struct ht_item **old_array, long int old_size){
-    struct ht_item *cur;
-    long int index = -1;
-
-    for (int i = 0; i < old_size; i++) {
-        cur = old_array[i];
-        if (cur != NULL) {
-            int i = 0;
-            index = ht_get_index(ht, cur->key, 0);
-
-            while (ht->array[index] != NULL) {
-                index = ht_get_index(ht, cur->key, i);
-                i++;
-            }
-            ht->array[index] = cur;
-        }
-    }
-
-}
+void ht_insert(struct hash_table *ht, char *key, void *elem);
 
 void ht_resize(struct hash_table *ht, long int new_size){
     struct ht_item **old_array = ht->array;
@@ -98,7 +87,11 @@ void ht_resize(struct hash_table *ht, long int new_size){
     } else {
         long int old_size = ht->size;
         ht->size = new_size;
-        ht_rehash(ht, old_array, old_size);
+        for (int i = 0; i < old_size; i++){
+            if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM){
+                ht_insert(ht, old_array[i]->key, old_array[i]->value);
+            }
+        }
         free(old_array);
     }
 }
@@ -114,6 +107,7 @@ struct ht_item* ht_new_item(char *key, void *value){
         } else {
             strcpy(item->key, key);
             item->value = value;
+            item->djb2_hash = djb2(key);
         }
     }
     return item;
@@ -123,40 +117,78 @@ void ht_insert(struct hash_table *ht, char *key, void *elem){
     struct ht_item *item = ht_new_item(key, elem);
 
     ht->count++;
-    printf("count: %ld size: %ld\n", ht->count, ht->size);
-    if (ht->count == ht->size){
+    if (ht->count == ht->size - 1){
        ht_resize(ht, ht->size * 2);
     } else if (ht->count <= (ht->size/4)){
         ht_resize(ht, ht->size / 2);
     }
 
     long int index = ht_get_index(ht, item->key, 0);
-    printf("hash table index: %ld\n", index);
 
     int i = 1;
-    // TODO: fix infinite loop in insertion
-    while (ht->array[index] != NULL && strcmp(item->key, ht->array[index]->key) != 0) {
+    // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
+    while (i <= MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL &&
+            ht->array[index] != &HT_DELETED_ITEM &&
+            ht->array[index]->djb2_hash != item->djb2_hash &&
+            strcmp(item->key, ht->array[index]->key) != 0) {
         index = ht_get_index(ht, item->key, i);
-        printf("index: %ld\n", index);
         i++;
     }
-    ht->array[index] = item;
 
+    while (ht->array[index] != NULL &&
+            ht->array[index] != &HT_DELETED_ITEM &&
+            ht->array[index]->djb2_hash != item->djb2_hash &&
+           strcmp(item->key, ht->array[index]->key) != 0){
+        /* we failed with double hashing, we switch to a different strategy:
+         * we linear probe from index to the end and then from start to end
+         * (we are guaranteed to find a free spot because we double table size
+         *  whenever there's just one left */
+        index++;
+        if (index == ht->size){
+            index = 0;
+        }
+    }
+
+    ht->array[index] = item;
 }
 
 void* ht_get(struct hash_table *ht, char *key){
     long int index = ht_get_index(ht, key, 0);
     struct ht_item *item = ht->array[index];
     int i = 1;
-    while (i < ht->size && item != NULL) {
-        if (strcmp(item->key, key) == 0){
+    long int hash = djb2(key);
+    short int half_probed = 0;
+
+    while (i < MAX_DOUBLE_HASHING_ROUNDS && item != NULL) {
+        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0){
             return item->value;
         }
+
         index = ht_get_index(ht, key, i);
         item = ht->array[index];
         i++;
     }
+
+    /* Same as above, if we failed to find the item we linear probe
+     * */
+    while ((index < ht->size || !half_probed ) && item != NULL){
+        if (index == ht->size){
+            index = 0;
+            half_probed = 1;
+        }
+        if (hash == item->djb2_hash && strcmp(item->key, key) == 0){
+            return item->value;
+        }
+        index++;
+        item = ht->array[index];
+    }
+
     return NULL;
+}
+
+void ht_delete(struct hash_table *ht, char *key){
+    ht_insert(ht, key, &HT_DELETED_ITEM);
+    ht->count--;
 }
 
 struct list_node{
@@ -187,6 +219,7 @@ void list_append(struct list *list, void *elem){
     list->tail->next->prev = list->tail;
     list->tail->next->next = NULL;
     list->tail = list->tail->next;
+    list->length++;
 }
 
 void list_print(struct list *list){
@@ -197,13 +230,15 @@ void list_print(struct list *list){
     }
 }
 
-void add_ent(char *entity_name, const int *dummy, struct hash_table *mon_ent, struct list *mon_ent_list){
+void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
     if (ht_get(mon_ent, entity_name) == NULL) {
-        printf("hash\n");
-        ht_insert(mon_ent, entity_name, dummy);
-        printf("list\n");
+        ht_insert(mon_ent, entity_name, &dummy);
         list_append(mon_ent_list, entity_name);
     }
+}
+
+void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
+    ht_delete(mon_ent, entity_name);
 }
 
 int main() {
@@ -227,8 +262,6 @@ int main() {
     char action[ACTION_SIZE + 1];
     char param1[MAX_PARAMETER_SIZE], param2[MAX_PARAMETER_SIZE], param3[MAX_PARAMETER_SIZE];
 
-    const int dummy = 1;
-
     while (fgets(line, MAX_LINE_LENGTH, stdin)){
         // parse action
         strncpy(action, line, ACTION_SIZE);
@@ -247,12 +280,11 @@ int main() {
             }
         }
 
-        printf("%s %s %s %s\n", action, param1, param2, param3);
-
         if (strcmp(action, action_add_ent) == 0){
-            add_ent(param1, &dummy, &mon_ent, &mon_ent_list);
+            add_ent(param1, &mon_ent, &mon_ent_list);
         } else if (strcmp(action, action_del_ent) == 0){
             // del ent
+            del_ent(param1, &mon_ent, &mon_ent_list);
         } else if (strcmp(action, action_add_rel) == 0){
             // add rel
         } else if (strcmp(action, action_del_rel) == 0){
