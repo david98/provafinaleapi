@@ -15,7 +15,7 @@
 
 #define MAX_PARAMETER_SIZE 100
 
-#define MAX_DOUBLE_HASHING_ROUNDS 15
+#define MAX_DOUBLE_HASHING_ROUNDS 150
 
 static const int dummy = 1;
 
@@ -59,7 +59,7 @@ struct hash_table{
 };
 
 void ht_init(struct hash_table *ht, long int initial_size){
-    ht->array = calloc(initial_size, sizeof(struct ht_item *));
+    ht->array = calloc(initial_size, sizeof(struct ht_item));
     if (ht->array == NULL){
         exit(1);
     }
@@ -81,7 +81,7 @@ void ht_insert(struct hash_table *ht, char *key, void *elem);
 
 void ht_resize(struct hash_table *ht, long int new_size){
     struct ht_item **old_array = ht->array;
-    ht->array = calloc(new_size, sizeof(struct ht_item*));
+    ht->array = calloc(new_size, sizeof(struct ht_item));
     if (ht->array == NULL){
         exit(1);
     } else {
@@ -90,7 +90,9 @@ void ht_resize(struct hash_table *ht, long int new_size){
         for (int i = 0; i < old_size; i++){
             if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM){
                 ht_insert(ht, old_array[i]->key, old_array[i]->value);
+                free(old_array[i]->key);
             }
+            free(old_array[i]);
         }
         free(old_array);
     }
@@ -101,11 +103,11 @@ struct ht_item* ht_new_item(char *key, void *value){
     if (item == NULL){
         exit(1);
     } else {
-        item->key = malloc(sizeof(char) * strlen(key));
+        item->key = strdup(key);
         if (item->key == NULL){
+            free(item);
             exit(1);
         } else {
-            strcpy(item->key, key);
             item->value = value;
             item->djb2_hash = djb2(key);
         }
@@ -148,7 +150,10 @@ void ht_insert(struct hash_table *ht, char *key, void *elem){
             index = 0;
         }
     }
-
+    if (ht->array[index] != NULL && ht->array[index] != &HT_DELETED_ITEM){
+        free(ht->array[index]->key);
+        free(ht->array[index]);
+    }
     ht->array[index] = item;
 }
 
@@ -159,8 +164,8 @@ void* ht_get(struct hash_table *ht, char *key){
     long int hash = djb2(key);
     short int half_probed = 0;
 
-    while (i < MAX_DOUBLE_HASHING_ROUNDS && item != NULL) {
-        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0){
+    while (i < MAX_DOUBLE_HASHING_ROUNDS && item != NULL && item != &HT_DELETED_ITEM) {
+        if (hash == item->djb2_hash && strcmp(item->key, key) == 0){
             return item->value;
         }
 
@@ -187,8 +192,12 @@ void* ht_get(struct hash_table *ht, char *key){
 }
 
 void ht_delete(struct hash_table *ht, char *key){
+    printf("\nDELETING %s\n", key);
     ht_insert(ht, key, &HT_DELETED_ITEM);
-    ht->count--;
+    if (ht_get(ht, key) != NULL){
+        printf("\nDELETION FAILED\n");
+    }
+    ht->count -= 2;
 }
 
 struct list_node{
@@ -204,45 +213,103 @@ struct list{
 };
 
 void list_init(struct list *list){
-    list->head = malloc(sizeof(struct list));
-    list->tail = list->head;
-    list->head->prev = NULL;
-    list->head->prev = NULL;
-    list->head->elem = NULL;
+    list->head = NULL;
+    list->tail = NULL;
     list->length = 0;
 }
 
-void list_append(struct list *list, void *elem){
-    list->tail->elem = elem;
-    list->tail->next = malloc(sizeof(struct list_node));
-    list->tail->next->elem = NULL;
-    list->tail->next->prev = list->tail;
-    list->tail->next->next = NULL;
-    list->tail = list->tail->next;
+struct list_node* list_create_new_node(void *elem, size_t elem_size){
+    struct list_node *node = malloc(sizeof(struct list_node));
+    if (node == NULL){
+        exit(1);
+    }
+    node->prev = NULL;
+    node->next = NULL;
+    node->elem = malloc(elem_size);
+    if (node->elem == NULL){
+        free(node);
+        exit(1);
+    }
+    memcpy(node->elem, elem, elem_size);
+    return node;
+}
+
+void list_append(struct list *list, void *elem, size_t elem_size){
+    struct list_node *new_node = list_create_new_node(elem, elem_size);
+    if (list->tail == NULL){
+        list->head = new_node;
+        list->tail = new_node;
+    } else {
+        new_node->prev = list->tail;
+        list->tail->next = new_node;
+        list->tail = new_node;
+    }
     list->length++;
 }
+
+void list_remove(struct list *list, void *elem, int (*cmp)(void*, void*)){
+    struct list_node *cur = list->head;
+    while (cur != NULL){
+        if (cur->elem != NULL && strcmp(cur->elem, elem) == 0){
+            if (cur == list->head ){
+                if (cur == list->tail){
+                    list->head = NULL;
+                    list->tail = NULL;
+                    free(cur->elem);
+                    free(cur);
+                } else {
+                    list->head = cur->next;
+                    free(cur->elem);
+                    free(cur);
+                }
+            } else if (cur == list->tail){
+                list->tail = cur->prev;
+                list->tail->next = NULL;
+                free(cur->elem);
+                free(cur);
+            } else {
+                cur->prev->next = cur->next;
+                cur->next->prev = cur->prev;
+                free(cur->elem);
+                free(cur);
+            }
+            list->length--;
+            return;
+        }
+        cur = cur->next;
+    }
+}
+
 
 void list_print(struct list *list){
     struct list_node *cur = list->head;
     while( cur != NULL ){
-        printf("%s ", cur->elem);
+        printf("%s, ", (char*)cur->elem);
         cur = cur->next;
     }
+    printf("\n");
 }
 
 void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
     if (ht_get(mon_ent, entity_name) == NULL) {
         ht_insert(mon_ent, entity_name, &dummy);
-        list_append(mon_ent_list, entity_name);
+        list_append(mon_ent_list, entity_name, (strlen(entity_name) + 1) * sizeof(char));
+        printf("Inserted %s.\n", entity_name);
+        list_print(mon_ent_list);
     }
 }
 
 void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
-    ht_delete(mon_ent, entity_name);
+    if (ht_get(mon_ent, entity_name) != NULL) {
+        ht_delete(mon_ent, entity_name);
+        list_remove(mon_ent_list, entity_name, strcmp);
+        printf("Removed %s.\n", entity_name);
+        list_print(mon_ent_list);
+    }
 }
 
 int main() {
-
+    freopen("input.txt", "r", stdin);
     struct hash_table mon_ent, mon_rel;
     struct list mon_ent_list, mon_rel_list;
     char line[MAX_LINE_LENGTH];
@@ -300,5 +367,5 @@ int main() {
     list_print(&mon_ent_list);
     // free all memory
 
-    return 0;
+    exit(0);
 }
