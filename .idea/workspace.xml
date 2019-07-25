@@ -46,8 +46,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="305">
-              <caret line="272" column="32" selection-start-line="272" selection-start-column="32" selection-end-line="272" selection-end-column="32" />
+            <state relative-caret-position="319">
+              <caret line="516" selection-start-line="516" selection-end-line="516" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -58,8 +58,17 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/cmake-build-debug/input.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="315">
-              <caret line="969" selection-start-line="969" selection-end-line="969" />
+            <state relative-caret-position="287">
+              <caret line="58" selection-start-line="58" selection-end-line="58" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/cmake-build-debug/expected_output.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="231">
+              <caret line="11" selection-start-line="11" selection-end-line="11" />
             </state>
           </provider>
         </entry>
@@ -70,7 +79,17 @@
     <findStrings>
       <find>printf</find>
       <find>addent</find>
+      <find>jonathan</find>
+      <find>REMOVED jonathan</find>
+      <find>delent &quot;jON</find>
+      <find>tried to delete jona</find>
+      <find>long int</find>
+      <find>Jonathan_Archer</find>
+      <find>addrel &quot;Ayala&quot;</find>
     </findStrings>
+    <replaceStrings>
+      <replace>Hugh_Culber</replace>
+    </replaceStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -80,11 +99,12 @@
       <list>
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/cmake-build-debug/input.txt" />
+        <option value="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" />
         <option value="$PROJECT_DIR$/main.c" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" fullScreen="true">
+  <component name="ProjectFrameBounds" extendedState="6" fullScreen="true">
     <option name="width" value="1280" />
     <option name="height" value="800" />
   </component>
@@ -94,6 +114,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -110,7 +131,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -164,12 +184,14 @@
       <workItem from="1563874547366" duration="8918000" />
       <workItem from="1563897526968" duration="5858000" />
       <workItem from="1563960669311" duration="4286000" />
-      <workItem from="1563971100293" duration="3351000" />
+      <workItem from="1563971100293" duration="5892000" />
+      <workItem from="1564042232973" duration="11578000" />
+      <workItem from="1564060278382" duration="5223000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="48201000" />
+    <option name="totallyTimeSpent" value="67543000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -184,7 +206,7 @@
     <frame x="0" y="0" width="1280" height="800" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.28594506" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.2956381" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -221,17 +243,31 @@
     <entry file="file://$PROJECT_DIR$/CMakeLists.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
+    <entry file="file://$PROJECT_DIR$/cmake-build-debug/output.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="5" column="40" lean-forward="true" selection-start-line="5" selection-start-column="40" selection-end-line="5" selection-end-column="40" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmake-build-debug/expected_output.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="231">
+          <caret line="11" selection-start-line="11" selection-end-line="11" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/cmake-build-debug/input.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="969" selection-start-line="969" selection-end-line="969" />
+        <state relative-caret-position="287">
+          <caret line="58" selection-start-line="58" selection-end-line="58" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/main.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="305">
-          <caret line="272" column="32" selection-start-line="272" selection-start-column="32" selection-end-line="272" selection-end-column="32" />
+        <state relative-caret-position="319">
+          <caret line="516" selection-start-line="516" selection-end-line="516" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
