@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define MAX_LINE_LENGTH 1000
-#define INITIAL_HASH_TABLE_SIZE 256u
+#define INITIAL_HASH_TABLE_SIZE 1024
 
 #define ACTION_SIZE 6
 
@@ -17,8 +18,8 @@
 
 #define MAX_DOUBLE_HASHING_ROUNDS 150
 
-#define MAX_ENTITIES_NUMBER 10000
-#define MAX_RELATIONSHIPS_NUMBER 10000
+#define MAX_ENTITIES_NUMBER 100000
+#define MAX_RELATIONSHIPS_NUMBER 100000
 
 static const int dummy = 1;
 
@@ -69,12 +70,12 @@ struct hash_table{
 };
 
 void ht_init(struct hash_table *ht, unsigned long int initial_size){
-    ht->array = calloc(initial_size, sizeof(struct ht_item));
+    ht->array = calloc(initial_size, sizeof(struct ht_item *));
     if (ht->array == NULL){
         exit(1);
     }
     ht->size = initial_size;
-    ht->count = 0;
+    ht->count = 0u;
 }
 
 struct hash_table* ht_new(unsigned long int initial_size){
@@ -102,7 +103,7 @@ void ht_destroy(struct hash_table *ht);
 
 void ht_resize(struct hash_table *ht, unsigned long int new_size){
     struct ht_item **old_array = ht->array;
-    ht->array = calloc(new_size, sizeof(struct ht_item));
+    ht->array = calloc(new_size, sizeof(struct ht_item *));
     if (ht->array == NULL){
         ht_destroy(ht);
         exit(1);
@@ -142,11 +143,11 @@ struct ht_item* ht_new_item(char *key, void *value){
 void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing){
     struct ht_item *item = ht_new_item(key, elem);
 
-    if (!resizing) {
-        if (ht->count == ht->size - 1) {
-            ht_resize(ht, ht->size * 2);
-        } else if (ht->count <= (ht->size / 4)) {
-            ht_resize(ht, ht->size / 2);
+    if (resizing) {
+        if (ht->count >= ht->size * 70 / 100) {
+            ht_resize(ht, (unsigned long int)ht->size * 2);
+        } else if (ht->count <= (ht->size * 10 / 100)) {
+            ht_resize(ht, (unsigned long int)ht->size / 2);
         }
     }
 
@@ -154,7 +155,7 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
 
     int i = 1;
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
-    while (i <= MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL &&
+    while (i < MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
            ht->array[index]->djb2_hash != item->djb2_hash &&
            strcmp(item->key, ht->array[index]->key) != 0) {
@@ -231,7 +232,7 @@ void ht_delete(struct hash_table *ht, char *key){
     unsigned long int hash = djb2(key);
     int i = 1;
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
-    while (i <= MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL) {
+    while (i < MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
             strcmp(key, ht->array[index]->key) == 0){
 
@@ -273,6 +274,7 @@ void ht_destroy(struct hash_table *ht){
             free(ht->array[i]);
         }
     }
+    free(ht->array);
     free(ht);
 }
 
@@ -381,6 +383,7 @@ void list_destroy(struct list *list){
     struct list_node *cur = list->head;
     while (cur != NULL){
         struct list_node *next = cur->next;
+        free(cur->elem);
         free(cur);
         cur = next;
     }
@@ -401,6 +404,7 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
         if (rel_table == NULL){
             rel_table = ht_new(INITIAL_HASH_TABLE_SIZE);
             ht_insert(mon_rel, rel_name, rel_table);
+            rel_table = ht_get(mon_rel, rel_name);
             list_append(mon_rel_list, rel_name, sizeof(char) * (strlen(rel_name) + 1));
         }
         struct hash_table *dest_table = ht_get(rel_table, dest_ent);
@@ -408,14 +412,22 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
             dest_table = ht_new(INITIAL_HASH_TABLE_SIZE);
             ht_insert(rel_table, dest_ent, dest_table);
         }
-        if (ht_get(dest_table, origin_ent) == NULL){
-            ht_insert(dest_table, origin_ent, &dummy);
-        }
+        ht_insert(dest_table, origin_ent, &dummy);
     }
 }
 
-void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
+void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list,
+        struct hash_table *mon_rel, struct list *mon_rel_list){
     if (ht_get(mon_ent, entity_name) != NULL) {
+        struct list_node *cur_rel = mon_rel_list->head;
+        struct hash_table *rel_table;
+        while (cur_rel != NULL){
+            rel_table = ht_get(mon_rel, cur_rel->elem);
+            if (rel_table != NULL){
+                ht_delete(rel_table, entity_name);
+            }
+            cur_rel = cur_rel->next;
+        }
         ht_delete(mon_ent, entity_name);
         list_remove(mon_ent_list, entity_name, strcmp);
     }
@@ -510,7 +522,10 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
                 for (int i = 0; i < best_ents_arr_len; i++){
                     printf("\"%s\" ", best_ents_arr[i]);
                 }
-                printf("%d; ", count);
+                printf("%d;", count);
+                if (j + 1 < rels_len){
+                    printf(" ");
+                }
             }
             // if printed at least one line print newline
             ht_destroy(best_ents);
@@ -525,14 +540,14 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
 
 int main() {
     freopen("input.txt", "r", stdin);
-    struct hash_table mon_ent, mon_rel;
+    struct hash_table *mon_ent, *mon_rel;
     struct list mon_ent_list, mon_rel_list;
     char line[MAX_LINE_LENGTH];
 
-    /*mon_ent = ht_new(INITIAL_HASH_TABLE_SIZE);
-    mon_rel = ht_new(INITIAL_HASH_TABLE_SIZE);*/
-    ht_init(&mon_ent, INITIAL_HASH_TABLE_SIZE);
-    ht_init(&mon_rel, INITIAL_HASH_TABLE_SIZE);
+    mon_ent = ht_new(INITIAL_HASH_TABLE_SIZE);
+    mon_rel = ht_new(INITIAL_HASH_TABLE_SIZE);
+    /*ht_init(&mon_ent, INITIAL_HASH_TABLE_SIZE);
+    ht_init(&mon_rel, INITIAL_HASH_TABLE_SIZE);*/
 
     list_init(&mon_ent_list);
     list_init(&mon_rel_list);
@@ -558,22 +573,22 @@ int main() {
             if (line[i] == '"' && line[i - 1] != ' '){
                 char *dest = cur_par == 1 ? param1 : cur_par == 2 ? param2 : param3;
                 strncpy(dest, &line[j], i - j);
-                line[i - j + 1] = '\0';
+                dest[i - j] = '\0';
                 cur_par++;
                 j = i + 3;
             }
         }
 
         if (strcmp(action, action_add_ent) == 0){
-            add_ent(param1, &mon_ent, &mon_ent_list);
+            add_ent(param1, mon_ent, &mon_ent_list);
         } else if (strcmp(action, action_del_ent) == 0){
-            del_ent(param1, &mon_ent, &mon_ent_list);
+            del_ent(param1, mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
         } else if (strcmp(action, action_add_rel) == 0){
-            add_rel(param1, param2, param3, &mon_ent, &mon_rel, &mon_rel_list);
+            add_rel(param1, param2, param3, mon_ent, mon_rel, &mon_rel_list);
         } else if (strcmp(action, action_del_rel) == 0){
-            del_rel(param1, param2, param3, &mon_rel, &mon_rel_list);
+            del_rel(param1, param2, param3, mon_rel, &mon_rel_list);
         } else if (strcmp(action, action_report) == 0) {
-            report(&mon_ent, &mon_ent_list, &mon_rel, &mon_rel_list);
+            report(mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
         }
         // zero-out parameters
         memset(param1, 0, MAX_PARAMETER_SIZE);
@@ -581,16 +596,21 @@ int main() {
         memset(param3, 0, MAX_PARAMETER_SIZE);
     }
     // free all memory
+
     exit(0);
 }
 
-int smain(){
-    struct hash_table ht;
-    ht_init(&ht, 256);
-
-    ht_insert(&ht, "ciao", "hey");
-    ht_delete(&ht, "ciao");
-    printf("%s", ht_get(&ht, "ciao"));
-
-    exit(0);
+int unit_test_hash_table(){
+    struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
+    struct hash_table *super_ht = ht_new(INITIAL_HASH_TABLE_SIZE);
+    char *base_key = "key";
+    char key[1000000];
+    for (int i = 0; i < 20000; i++){
+        sprintf(key, "%s%d", base_key, i);
+        ht_insert(super_ht, key, ht);
+        unsigned long int old_size = ht->size;
+        ht = ht_get(super_ht, key);
+        assert(ht->size == old_size);
+        ht = ht_new(rand()%INITIAL_HASH_TABLE_SIZE);
+    }
 }
