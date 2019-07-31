@@ -16,7 +16,7 @@
 
 #define MAX_PARAMETER_SIZE 100
 
-#define MAX_DOUBLE_HASHING_ROUNDS 150
+#define DOUBLE_HASHING_FACTOR 1
 
 #define MAX_ENTITIES_NUMBER 100000
 #define MAX_RELATIONSHIPS_NUMBER 100000
@@ -152,10 +152,10 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
     }
 
     unsigned long int index = ht_get_index(ht, item->key, 0);
-
+    unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
     int i = 1;
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
-    while (i < MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL &&
+    while (i < max_double_hashing_rounds && ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
            ht->array[index]->djb2_hash != item->djb2_hash &&
            strcmp(item->key, ht->array[index]->key) != 0) {
@@ -199,8 +199,9 @@ void* ht_get(struct hash_table *ht, char *key){
     int i = 1;
     unsigned long int hash = djb2(key);
     short int half_probed = 0;
+    unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
 
-    while (i < MAX_DOUBLE_HASHING_ROUNDS && item != NULL) {
+    while (i < max_double_hashing_rounds && item != NULL) {
         if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0){
             return item->value;
         }
@@ -231,8 +232,10 @@ void ht_delete(struct hash_table *ht, char *key){
     unsigned long int index = ht_get_index(ht, key, 0);
     unsigned long int hash = djb2(key);
     int i = 1;
+    unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
+
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
-    while (i < MAX_DOUBLE_HASHING_ROUNDS && ht->array[index] != NULL) {
+    while (i < max_double_hashing_rounds && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
             strcmp(key, ht->array[index]->key) == 0){
 
