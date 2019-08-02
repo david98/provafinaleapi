@@ -2,9 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+//#include <sys/time.h>
 
-#define MAX_LINE_LENGTH 1000
-#define INITIAL_HASH_TABLE_SIZE 1024
+#define MAX_LINE_LENGTH 200
+#define INITIAL_MON_REL_SIZE 256
+#define INITIAL_MON_ENT_SIZE 2097152
+#define INITIAL_HASH_TABLE_SIZE 32
 
 #define ACTION_SIZE 6
 
@@ -14,7 +17,7 @@
 #define ACTION_DEL_REL "delrel"
 #define ACTION_REPORT "report"
 
-#define MAX_PARAMETER_SIZE 100
+#define MAX_PARAMETER_SIZE 33
 
 #define DOUBLE_HASHING_FACTOR 1
 
@@ -23,16 +26,15 @@
 
 static const int dummy = 1;
 
-int compare_strings (const void * a, const void * b ) {
-    const char *pa = *(const char**)a;
-    const char *pb = *(const char**)b;
+int compare_strings(const void *a, const void *b) {
+    const char *pa = *(const char **) a;
+    const char *pb = *(const char **) b;
 
-    return strcmp(pa,pb);
+    return strcmp(pa, pb);
 }
 
 unsigned long
-djb2(unsigned char *str)
-{
+djb2(unsigned char *str) {
     unsigned long hash = 5381;
     int c;
 
@@ -55,7 +57,7 @@ sdbm(str)
     return hash;
 }
 
-struct ht_item{
+struct ht_item {
     char *key;
     unsigned long int djb2_hash;
     void *value;
@@ -63,31 +65,31 @@ struct ht_item{
 
 static const struct ht_item HT_DELETED_ITEM = {NULL, 0, NULL};
 
-struct hash_table{
+struct hash_table {
     struct ht_item **array;
     unsigned long int size;
     unsigned long int count;
 };
 
-void ht_init(struct hash_table *ht, unsigned long int initial_size){
+void ht_init(struct hash_table *ht, unsigned long int initial_size) {
     ht->array = calloc(initial_size, sizeof(struct ht_item *));
-    if (ht->array == NULL){
+    if (ht->array == NULL) {
         exit(1);
     }
     ht->size = initial_size;
     ht->count = 0u;
 }
 
-struct hash_table* ht_new(unsigned long int initial_size){
+struct hash_table *ht_new(unsigned long int initial_size) {
     struct hash_table *ht = malloc(sizeof(struct hash_table));
-    if (ht == NULL){
+    if (ht == NULL) {
         exit(1);
     }
     ht_init(ht, initial_size);
     return ht;
 }
 
-unsigned long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round){
+unsigned long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round) {
     unsigned long int a = djb2(key);
     unsigned long int b = sdbm(key);
     unsigned long int value = (a + double_hashing_round * (b + 1));
@@ -98,21 +100,23 @@ unsigned long int ht_get_index(struct hash_table *ht, char *key, int double_hash
 }
 
 void ht_insert(struct hash_table *ht, char *key, void *elem);
+
 void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem);
+
 void ht_destroy(struct hash_table *ht);
 
-void ht_resize(struct hash_table *ht, unsigned long int new_size){
+void ht_resize(struct hash_table *ht, unsigned long int new_size) {
     struct ht_item **old_array = ht->array;
     ht->array = calloc(new_size, sizeof(struct ht_item *));
-    if (ht->array == NULL){
+    if (ht->array == NULL) {
         ht_destroy(ht);
         exit(1);
     } else {
         unsigned long int old_size = ht->size;
         ht->size = new_size;
         unsigned long int old_count = ht->count;
-        for (int i = 0; i < old_size; i++){
-            if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM){
+        for (int i = 0; i < old_size; i++) {
+            if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM) {
                 ht_insert_no_resize(ht, old_array[i]->key, old_array[i]->value);
                 free(old_array[i]->key);
                 free(old_array[i]);
@@ -123,13 +127,13 @@ void ht_resize(struct hash_table *ht, unsigned long int new_size){
     }
 }
 
-struct ht_item* ht_new_item(char *key, void *value){
+struct ht_item *ht_new_item(char *key, void *value) {
     struct ht_item *item = malloc(sizeof(struct ht_item));
-    if (item == NULL){
+    if (item == NULL) {
         exit(1);
     } else {
         item->key = strdup(key);
-        if (item->key == NULL){
+        if (item->key == NULL) {
             free(item);
             exit(1);
         } else {
@@ -140,14 +144,14 @@ struct ht_item* ht_new_item(char *key, void *value){
     return item;
 }
 
-void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing){
+void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing) {
     struct ht_item *item = ht_new_item(key, elem);
 
     if (resizing) {
         if (ht->count >= ht->size * 70 / 100) {
-            ht_resize(ht, (unsigned long int)ht->size * 2);
+            ht_resize(ht, (unsigned long int) ht->size * 2);
         } else if (ht->count <= (ht->size * 10 / 100)) {
-            ht_resize(ht, (unsigned long int)ht->size / 2);
+            //ht_resize(ht, (unsigned long int)ht->size / 2);
         }
     }
 
@@ -166,17 +170,17 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
     while (ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
            ht->array[index]->djb2_hash != item->djb2_hash &&
-           strcmp(item->key, ht->array[index]->key) != 0){
+           strcmp(item->key, ht->array[index]->key) != 0) {
         /* we failed with double hashing, we switch to a different strategy:
          * we linear probe from index to the end and then from start to end
          * (we are guaranteed to find a free spot because we double table size
          *  whenever there's just one left */
         index++;
-        if (index == ht->size){
+        if (index == ht->size) {
             index = 0;
         }
     }
-    if (ht->array[index] != NULL && ht->array[index] != &HT_DELETED_ITEM){
+    if (ht->array[index] != NULL && ht->array[index] != &HT_DELETED_ITEM) {
         free(ht->array[index]->key);
         free(ht->array[index]);
     } else {
@@ -185,15 +189,15 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
     ht->array[index] = item;
 }
 
-void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem){
+void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem) {
     __ht_insert(ht, key, elem, 0);
 }
 
-void ht_insert(struct hash_table *ht, char *key, void *elem){
+void ht_insert(struct hash_table *ht, char *key, void *elem) {
     __ht_insert(ht, key, elem, 1);
 }
 
-void* ht_get(struct hash_table *ht, char *key){
+void *ht_get(struct hash_table *ht, char *key) {
     unsigned long int index = ht_get_index(ht, key, 0);
     struct ht_item *item = ht->array[index];
     int i = 1;
@@ -202,7 +206,7 @@ void* ht_get(struct hash_table *ht, char *key){
     unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
 
     while (i < max_double_hashing_rounds && item != NULL) {
-        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0){
+        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
 
@@ -213,12 +217,12 @@ void* ht_get(struct hash_table *ht, char *key){
 
     /* Same as above, if we failed to find the item we linear probe
      * */
-    while ((index < ht->size || !half_probed ) && item != NULL){
-        if (index == ht->size){
+    while ((index < ht->size || !half_probed) && item != NULL) {
+        if (index == ht->size) {
             index = 0;
             half_probed = 1;
         }
-        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0){
+        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
         index++;
@@ -228,7 +232,7 @@ void* ht_get(struct hash_table *ht, char *key){
     return NULL;
 }
 
-void ht_delete(struct hash_table *ht, char *key){
+void ht_delete(struct hash_table *ht, char *key) {
     unsigned long int index = ht_get_index(ht, key, 0);
     unsigned long int hash = djb2(key);
     int i = 1;
@@ -237,7 +241,7 @@ void ht_delete(struct hash_table *ht, char *key){
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
     while (i < max_double_hashing_rounds && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
-            strcmp(key, ht->array[index]->key) == 0){
+            strcmp(key, ht->array[index]->key) == 0) {
 
             free(ht->array[index]->key);
             free(ht->array[index]);
@@ -251,9 +255,9 @@ void ht_delete(struct hash_table *ht, char *key){
 
     short int half_probed = 0;
 
-    while ((index < ht->size || !half_probed ) && ht->array[index] != NULL){
+    while ((index < ht->size || !half_probed) && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
-            strcmp(key, ht->array[index]->key) == 0){
+            strcmp(key, ht->array[index]->key) == 0) {
 
             free(ht->array[index]->key);
             free(ht->array[index]);
@@ -262,15 +266,24 @@ void ht_delete(struct hash_table *ht, char *key){
             return;
         }
         index++;
-        if (index == ht->size){
+        if (index == ht->size) {
             index = 0;
             half_probed = 1;
         }
     }
 }
 
-void ht_destroy(struct hash_table *ht){
-    for (int i = 0; i < ht->size; i++){
+void print_keys(struct hash_table *ht) {
+    printf("\n[");
+    for (int i = 0; i < ht->size; i++) {
+        if (ht->array[i] != NULL && ht->array[i] != &HT_DELETED_ITEM)
+            printf(" '%s',", ht->array[i]->key);
+    }
+    printf("]\n");
+}
+
+void ht_destroy(struct hash_table *ht) {
+    for (int i = 0; i < ht->size; i++) {
         if (ht->array[i] != NULL && ht->array[i] != &HT_DELETED_ITEM) {
             free(ht->array[i]->key);
             free(ht->array[i]->value);
@@ -281,33 +294,33 @@ void ht_destroy(struct hash_table *ht){
     free(ht);
 }
 
-struct list_node{
+struct list_node {
     struct list_node *prev;
     struct list_node *next;
     void *elem;
 };
 
-struct list{
+struct list {
     struct list_node *head;
     struct list_node *tail;
     int length;
 };
 
-void list_init(struct list *list){
+void list_init(struct list *list) {
     list->head = NULL;
     list->tail = NULL;
     list->length = 0;
 }
 
-struct list_node* list_create_new_node(void *elem, size_t elem_size){
+struct list_node *list_create_new_node(void *elem, size_t elem_size) {
     struct list_node *node = malloc(sizeof(struct list_node));
-    if (node == NULL){
+    if (node == NULL) {
         exit(1);
     }
     node->prev = NULL;
     node->next = NULL;
     node->elem = malloc(elem_size);
-    if (node->elem == NULL){
+    if (node->elem == NULL) {
         free(node);
         exit(1);
     }
@@ -315,15 +328,15 @@ struct list_node* list_create_new_node(void *elem, size_t elem_size){
     return node;
 }
 
-struct list* list_new() {
+struct list *list_new() {
     struct list *ls = malloc(sizeof(struct list));
     list_init(ls);
     return ls;
 }
 
-void list_append(struct list *list, void *elem, size_t elem_size){
+void list_append(struct list *list, void *elem, size_t elem_size) {
     struct list_node *new_node = list_create_new_node(elem, elem_size);
-    if (list->tail == NULL){
+    if (list->tail == NULL) {
         list->head = new_node;
         list->tail = new_node;
     } else {
@@ -334,12 +347,12 @@ void list_append(struct list *list, void *elem, size_t elem_size){
     list->length++;
 }
 
-void list_remove(struct list *list, void *elem, int (*cmp)(void*, void*)){
+void list_remove(struct list *list, void *elem, int (*cmp)(void *, void *)) {
     struct list_node *cur = list->head;
-    while (cur != NULL){
-        if (cur->elem != NULL && strcmp(cur->elem, elem) == 0){
-            if (cur == list->head ){
-                if (cur == list->tail){
+    while (cur != NULL) {
+        if (cur->elem != NULL && cmp(cur->elem, elem) == 0) {
+            if (cur == list->head) {
+                if (cur == list->tail) {
                     list->head = NULL;
                     list->tail = NULL;
                     free(cur->elem);
@@ -349,7 +362,7 @@ void list_remove(struct list *list, void *elem, int (*cmp)(void*, void*)){
                     free(cur->elem);
                     free(cur);
                 }
-            } else if (cur == list->tail){
+            } else if (cur == list->tail) {
                 list->tail = cur->prev;
                 list->tail->next = NULL;
                 free(cur->elem);
@@ -368,10 +381,10 @@ void list_remove(struct list *list, void *elem, int (*cmp)(void*, void*)){
 }
 
 
-void list_print(struct list *list){
+void list_print(struct list *list) {
     struct list_node *cur = list->head;
     printf("[");
-    while( cur != NULL ){
+    while (cur != NULL) {
         if (cur->next != NULL) {
             printf("'%s', ", (char *) cur->elem);
         } else {
@@ -382,9 +395,9 @@ void list_print(struct list *list){
     printf("]\n");
 }
 
-void list_destroy(struct list *list){
+void list_destroy(struct list *list) {
     struct list_node *cur = list->head;
-    while (cur != NULL){
+    while (cur != NULL) {
         struct list_node *next = cur->next;
         free(cur->elem);
         free(cur);
@@ -393,7 +406,7 @@ void list_destroy(struct list *list){
     free(list);
 }
 
-void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list){
+void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list) {
     if (ht_get(mon_ent, entity_name) == NULL) {
         ht_insert(mon_ent, entity_name, &dummy);
         list_append(mon_ent_list, entity_name, (strlen(entity_name) + 1) * sizeof(char));
@@ -401,17 +414,17 @@ void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
 }
 
 void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table *mon_ent,
-        struct hash_table *mon_rel, struct list *mon_rel_list){
-    if (ht_get(mon_ent, origin_ent) != NULL && ht_get(mon_ent, dest_ent) != NULL){
+             struct hash_table *mon_rel, struct list *mon_rel_list) {
+    if (ht_get(mon_ent, origin_ent) != NULL && ht_get(mon_ent, dest_ent) != NULL) {
         struct hash_table *rel_table = ht_get(mon_rel, rel_name);
-        if (rel_table == NULL){
+        if (rel_table == NULL) {
             rel_table = ht_new(INITIAL_HASH_TABLE_SIZE);
             ht_insert(mon_rel, rel_name, rel_table);
             rel_table = ht_get(mon_rel, rel_name);
             list_append(mon_rel_list, rel_name, sizeof(char) * (strlen(rel_name) + 1));
         }
         struct hash_table *dest_table = ht_get(rel_table, dest_ent);
-        if (dest_table == NULL){
+        if (dest_table == NULL) {
             dest_table = ht_new(INITIAL_HASH_TABLE_SIZE);
             ht_insert(rel_table, dest_ent, dest_table);
         }
@@ -420,14 +433,19 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
 }
 
 void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list,
-        struct hash_table *mon_rel, struct list *mon_rel_list){
+             struct hash_table *mon_rel, struct list *mon_rel_list) {
     if (ht_get(mon_ent, entity_name) != NULL) {
         struct list_node *cur_rel = mon_rel_list->head;
         struct hash_table *rel_table;
-        while (cur_rel != NULL){
+        while (cur_rel != NULL) {
             rel_table = ht_get(mon_rel, cur_rel->elem);
-            if (rel_table != NULL){
+            if (rel_table != NULL) {
                 ht_delete(rel_table, entity_name);
+                if (rel_table->count == 0) {
+                    ht_delete(mon_rel, cur_rel->elem);
+                    ht_destroy(rel_table);
+                    list_remove(mon_rel_list, cur_rel->elem, strcmp);
+                }
             }
             cur_rel = cur_rel->next;
         }
@@ -437,18 +455,18 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
 }
 
 void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
-        struct hash_table *mon_rel, struct list *mon_rel_list){
+             struct hash_table *mon_rel, struct list *mon_rel_list) {
     struct hash_table *rel_table = ht_get(mon_rel, rel_name);
-    if (rel_table != NULL){
+    if (rel_table != NULL) {
         struct hash_table *dest_table = ht_get(rel_table, dest_ent);
-        if (dest_table != NULL){
+        if (dest_table != NULL) {
             int *flag = ht_get(dest_table, origin_ent);
-            if (flag != NULL){
+            if (flag != NULL) {
                 ht_delete(dest_table, origin_ent);
-                if (dest_table->count == 0){
+                if (dest_table->count == 0) {
                     ht_destroy(dest_table);
                     ht_delete(rel_table, dest_ent);
-                    if (rel_table->count == 0){
+                    if (rel_table->count == 0) {
                         ht_destroy(rel_table);
                         ht_delete(mon_rel, rel_name);
                         list_remove(mon_rel_list, rel_name, strcmp);
@@ -460,8 +478,8 @@ void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
 }
 
 void report(struct hash_table *mon_ent, struct list *mon_ent_list,
-        struct hash_table *mon_rel, struct list *mon_rel_list){
-    if (mon_rel_list->length == 0){
+            struct hash_table *mon_rel, struct list *mon_rel_list) {
+    if (mon_rel_list->length == 0) {
         printf("none\n");
     } else {
         char *rels[MAX_RELATIONSHIPS_NUMBER];
@@ -469,7 +487,7 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
         short int printed = 0;
         struct list_node *rel = mon_rel_list->head;
 
-        while (rel != NULL){
+        while (rel != NULL) {
             rels[rels_len] = rel->elem;
             rels_len++;
             rel = rel->next;
@@ -477,7 +495,7 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
 
         qsort(rels, rels_len, sizeof(char *), compare_strings);
 
-        for (int j = 0; j < rels_len; j++){
+        for (int j = 0; j < rels_len; j++) {
             char *cur_rel = rels[j];
             char *best_ents_arr[MAX_ENTITIES_NUMBER];
             int best_ents_arr_len = 0;
@@ -485,30 +503,30 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
             int count = 0;
             struct hash_table *rel_table = ht_get(mon_rel, cur_rel);
             struct list_node *ent = mon_ent_list->head;
-            while(ent != NULL){
+            while (ent != NULL) {
                 struct hash_table *dest_table = ht_get(rel_table, ent->elem);
-                if (dest_table != NULL && ht_get(best_ents, ent->elem) == NULL && dest_table->count >= count){
+                if (dest_table != NULL && dest_table->count >= count) {
                     struct list *keys_to_remove = list_new();
-                    for (int i = 0; i < dest_table->size; i++){
+                    for (int i = 0; i < dest_table->size; i++) {
                         if (dest_table->array[i] != NULL && dest_table->array[i] != &HT_DELETED_ITEM &&
-                                ht_get(mon_ent, dest_table->array[i]->key) == NULL){
+                            ht_get(mon_ent, dest_table->array[i]->key) == NULL) {
                             list_append(keys_to_remove, dest_table->array[i]->key,
                                         sizeof(char) * (strlen(dest_table->array[i]->key) + 1));
                         }
                     }
                     struct list_node *key = keys_to_remove->head;
-                    while( key != NULL ){
+                    while (key != NULL) {
                         ht_delete(dest_table, key->elem);
                         key = key->next;
                     }
                     list_destroy(keys_to_remove);
 
-                    if ((best_ents_arr_len == 0 && dest_table->count > 0) || dest_table->count > count){
+                    if ((best_ents_arr_len == 0 && dest_table->count > 0) || dest_table->count > count) {
                         best_ents_arr[0] = ent->elem;
                         best_ents_arr_len = 1;
                         count = dest_table->count;
                     } else if (dest_table->count == count && count != 0 &&
-                        strcmp(best_ents_arr[0], ent->elem) != 0){
+                               strcmp(best_ents_arr[0], ent->elem) != 0) {
                         best_ents_arr[best_ents_arr_len] = ent->elem;
                         best_ents_arr_len++;
                     }
@@ -519,36 +537,40 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
             // sort best_ents_arr
             qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
             // if count > 0 print report
-            if (count > 0){
+            if (count > 0) {
                 printed = 1;
                 printf("\"%s\" ", cur_rel);
-                for (int i = 0; i < best_ents_arr_len; i++){
+                for (int i = 0; i < best_ents_arr_len; i++) {
                     printf("\"%s\" ", best_ents_arr[i]);
                 }
                 printf("%d;", count);
-                if (j + 1 < rels_len){
+                if (j + 1 < rels_len) {
                     printf(" ");
                 }
             }
-            // if printed at least one line print newline
             ht_destroy(best_ents);
         }
 
-        if (printed){
+        if (printed) {
             printf("\n");
+        } else {
+            printf("none\n");
         }
     }
 
 }
 
 int main() {
+    //struct timespec start, end;
+    //clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     freopen("input.txt", "r", stdin);
     struct hash_table *mon_ent, *mon_rel;
     struct list mon_ent_list, mon_rel_list;
+    int report_count = 0;
     char line[MAX_LINE_LENGTH];
 
-    mon_ent = ht_new(INITIAL_HASH_TABLE_SIZE);
-    mon_rel = ht_new(INITIAL_HASH_TABLE_SIZE);
+    mon_ent = ht_new(INITIAL_MON_ENT_SIZE);
+    mon_rel = ht_new(INITIAL_MON_REL_SIZE);
     /*ht_init(&mon_ent, INITIAL_HASH_TABLE_SIZE);
     ht_init(&mon_rel, INITIAL_HASH_TABLE_SIZE);*/
 
@@ -562,9 +584,10 @@ int main() {
     const char *action_report = ACTION_REPORT;
 
     char action[ACTION_SIZE + 1];
-    char param1[MAX_PARAMETER_SIZE], param2[MAX_PARAMETER_SIZE], param3[MAX_PARAMETER_SIZE];
+    char param1[MAX_PARAMETER_SIZE] = "", param2[MAX_PARAMETER_SIZE] = "", param3[MAX_PARAMETER_SIZE] = "";
+    unsigned long int len1, len2, len3;
 
-    while (fgets(line, MAX_LINE_LENGTH, stdin)){
+    while (fgets(line, MAX_LINE_LENGTH, stdin)) {
         // parse action
         strncpy(action, line, ACTION_SIZE);
         action[ACTION_SIZE] = '\0';
@@ -572,8 +595,8 @@ int main() {
         //parse parameters
         int line_len = strlen(line);
         int cur_par = 1;
-        for (int i = ACTION_SIZE + 2, j = i; i < line_len; i++){
-            if (line[i] == '"' && line[i - 1] != ' '){
+        for (int i = ACTION_SIZE + 2, j = i; i < line_len; i++) {
+            if (line[i] == '"' && line[i - 1] != ' ') {
                 char *dest = cur_par == 1 ? param1 : cur_par == 2 ? param2 : param3;
                 strncpy(dest, &line[j], i - j);
                 dest[i - j] = '\0';
@@ -581,34 +604,60 @@ int main() {
                 j = i + 3;
             }
         }
+        if (cur_par >= 1 && cur_par <= 4) {
+            len1 = strlen(param1);
+            len2 = strlen(param2);
+            len3 = strlen(param3);
+            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
+            //printf("lengths: %ld %ld %ld", len1, len2, len3);
 
-        if (strcmp(action, action_add_ent) == 0){
-            add_ent(param1, mon_ent, &mon_ent_list);
-        } else if (strcmp(action, action_del_ent) == 0){
-            del_ent(param1, mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
-        } else if (strcmp(action, action_add_rel) == 0){
-            add_rel(param1, param2, param3, mon_ent, mon_rel, &mon_rel_list);
-        } else if (strcmp(action, action_del_rel) == 0){
-            del_rel(param1, param2, param3, mon_rel, &mon_rel_list);
-        } else if (strcmp(action, action_report) == 0) {
-            report(mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
+            if (strcmp(action, action_add_ent) == 0) {
+                if (len1 > 0 && len2 == 0 && len3 == 0) {
+                    add_ent(param1, mon_ent, &mon_ent_list);
+                }
+            } else if (strcmp(action, action_del_ent) == 0) {
+                if (len1 > 0 && len2 == 0 && len3 == 0) {
+                    del_ent(param1, mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
+                }
+            } else if (strcmp(action, action_add_rel) == 0) {
+                if (len1 > 0 && len2 > 0 && len3 > 0) {
+                    add_rel(param1, param2, param3, mon_ent, mon_rel, &mon_rel_list);
+                }
+            } else if (strcmp(action, action_del_rel) == 0) {
+                if (len1 > 0 && len2 > 0 && len3 > 0) {
+                    del_rel(param1, param2, param3, mon_rel, &mon_rel_list);
+                }
+            } else if (strcmp(action, action_report) == 0) {
+                if (len1 == 0 && len2 == 0 && len3 == 0) {
+                    report(mon_ent, &mon_ent_list, mon_rel, &mon_rel_list);
+                }
+            } else if (strcmp(action, "end") == 0) {
+                goto END;
+            }
+            // zero-out parameters
+            memset(param1, 0, MAX_PARAMETER_SIZE);
+            memset(param2, 0, MAX_PARAMETER_SIZE);
+            memset(param3, 0, MAX_PARAMETER_SIZE);
         }
-        // zero-out parameters
-        memset(param1, 0, MAX_PARAMETER_SIZE);
-        memset(param2, 0, MAX_PARAMETER_SIZE);
-        memset(param3, 0, MAX_PARAMETER_SIZE);
     }
     // free all memory
+    END:
+    //clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    //uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    //printf("%f ms", (double)delta_us/1000);
 
     exit(0);
 }
 
-int unit_test_hash_table(){
+int ht_test() {
+    /*struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
     struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
-    struct hash_table *super_ht = ht_new(INITIAL_HASH_TABLE_SIZE);
+    struct hash_table *super_ht = ht_new(INITIAL_MON_ENT_SIZE);
     char *base_key = "key";
     char key[1000000];
-    for (int i = 0; i < 20000; i++){
+    for (int i = 0; i < 2000000; i++){
         sprintf(key, "%s%d", base_key, i);
         ht_insert(super_ht, key, ht);
         unsigned long int old_size = ht->size;
@@ -616,4 +665,23 @@ int unit_test_hash_table(){
         assert(ht->size == old_size);
         ht = ht_new(rand()%INITIAL_HASH_TABLE_SIZE);
     }
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms", (double)delta_us/1000);*/
+}
+
+int list_test() {
+    struct list *test;
+
+    test = list_new();
+    char *base_key = "key";
+    char key[1000000];
+    for (int i = 0; i < 2; i++) {
+        sprintf(key, "%s%d", base_key, i);
+        list_append(test, key, strlen(key));
+    }
+    list_remove(test, "key0", strcmp);
+    list_remove(test, "key1", strcmp);
+    list_print(test);
 }
