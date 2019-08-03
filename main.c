@@ -286,7 +286,8 @@ void ht_destroy(struct hash_table *ht) {
     for (int i = 0; i < ht->size; i++) {
         if (ht->array[i] != NULL && ht->array[i] != &HT_DELETED_ITEM) {
             free(ht->array[i]->key);
-            free(ht->array[i]->value);
+            if (ht->array[i]->value != &dummy)
+                free(ht->array[i]->value);
             free(ht->array[i]);
         }
     }
@@ -440,7 +441,19 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
         while (cur_rel != NULL) {
             rel_table = ht_get(mon_rel, cur_rel->elem);
             if (rel_table != NULL) {
-                ht_delete(rel_table, entity_name);
+                struct hash_table *dest_table = ht_get(rel_table, entity_name);
+                if (dest_table != NULL){
+                    ht_destroy(dest_table);
+                    ht_delete(rel_table, entity_name);
+                }
+                struct list_node *ent = mon_ent_list->head;
+                while (ent != NULL) {
+                    dest_table = ht_get(rel_table, ent->elem);
+                    if (dest_table != NULL) {
+                        ht_delete(dest_table, entity_name);
+                    }
+                    ent = ent->next;
+                }
                 if (rel_table->count == 0) {
                     ht_delete(mon_rel, cur_rel->elem);
                     ht_destroy(rel_table);
@@ -506,21 +519,6 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
             while (ent != NULL) {
                 struct hash_table *dest_table = ht_get(rel_table, ent->elem);
                 if (dest_table != NULL && dest_table->count >= count) {
-                    struct list *keys_to_remove = list_new();
-                    for (int i = 0; i < dest_table->size; i++) {
-                        if (dest_table->array[i] != NULL && dest_table->array[i] != &HT_DELETED_ITEM &&
-                            ht_get(mon_ent, dest_table->array[i]->key) == NULL) {
-                            list_append(keys_to_remove, dest_table->array[i]->key,
-                                        sizeof(char) * (strlen(dest_table->array[i]->key) + 1));
-                        }
-                    }
-                    struct list_node *key = keys_to_remove->head;
-                    while (key != NULL) {
-                        ht_delete(dest_table, key->elem);
-                        key = key->next;
-                    }
-                    list_destroy(keys_to_remove);
-
                     if ((best_ents_arr_len == 0 && dest_table->count > 0) || dest_table->count > count) {
                         best_ents_arr[0] = ent->elem;
                         best_ents_arr_len = 1;
@@ -560,7 +558,7 @@ void report(struct hash_table *mon_ent, struct list *mon_ent_list,
 
 }
 
-int main() {
+int main(void) {
     //struct timespec start, end;
     //clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     freopen("input.txt", "r", stdin);
