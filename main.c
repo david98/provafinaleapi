@@ -438,11 +438,12 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
     if (ht_get(mon_ent, entity_name) != NULL) {
         struct list_node *cur_rel = mon_rel_list->head;
         struct hash_table *rel_table;
+        struct list *rels_to_remove = list_new();
         while (cur_rel != NULL) {
             rel_table = ht_get(mon_rel, cur_rel->elem);
             if (rel_table != NULL) {
                 struct hash_table *dest_table = ht_get(rel_table, entity_name);
-                if (dest_table != NULL){
+                if (dest_table != NULL) {
                     ht_destroy(dest_table);
                     ht_delete(rel_table, entity_name);
                 }
@@ -451,19 +452,29 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
                     dest_table = ht_get(rel_table, ent->elem);
                     if (dest_table != NULL) {
                         ht_delete(dest_table, entity_name);
+                        if (dest_table->count == 0){
+                            //ht_destroy(dest_table);
+                            ht_delete(rel_table, entity_name);
+                        }
                     }
                     ent = ent->next;
                 }
                 if (rel_table->count == 0) {
-                    ht_delete(mon_rel, cur_rel->elem);
-                    ht_destroy(rel_table);
-                    list_remove(mon_rel_list, cur_rel->elem, strcmp);
+                    list_append(rels_to_remove, cur_rel->elem, sizeof(char) * (strlen(cur_rel->elem) + 1));
                 }
             }
             cur_rel = cur_rel->next;
         }
         ht_delete(mon_ent, entity_name);
         list_remove(mon_ent_list, entity_name, strcmp);
+        struct list_node *rel = rels_to_remove->head;
+        while (rel != NULL){
+            rel_table = ht_get(mon_rel, rel->elem);
+            ht_destroy(rel_table);
+            ht_delete(mon_rel, rel->elem);
+            list_remove(mon_rel_list, rel->elem, strcmp);
+            rel = rel->next;
+        }
     }
 }
 
