@@ -105,17 +105,17 @@ void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem);
 
 void ht_destroy(struct hash_table *ht);
 
-void ht_resize(struct hash_table *ht, unsigned long int new_size) {
+void ht_resize(struct hash_table *ht, size_t new_size) {
     struct ht_item **old_array = ht->array;
     ht->array = calloc(new_size, sizeof(struct ht_item *));
     if (ht->array == NULL) {
         ht_destroy(ht);
         exit(1);
     } else {
-        unsigned long int old_size = ht->size;
+        size_t old_size = ht->size;
         ht->size = new_size;
         unsigned long int old_count = ht->count;
-        for (int i = 0; i < old_size; i++) {
+        for (size_t i = 0; i < old_size; i++) {
             if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM) {
                 ht_insert_no_resize(ht, old_array[i]->key, old_array[i]->value);
                 free(old_array[i]->key);
