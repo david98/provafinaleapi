@@ -663,66 +663,100 @@ int main(void) {
     const char *action_del_rel = ACTION_DEL_REL;
     const char *action_report = ACTION_REPORT;
 
-    char action[ACTION_SIZE + 1];
-    char param1[MAX_PARAMETER_SIZE] = "", param2[MAX_PARAMETER_SIZE] = "", param3[MAX_PARAMETER_SIZE] = "";
-    unsigned long int len1, len2, len3;
+    char *action = NULL;
+    char *param1 = NULL, *param2 = NULL, *param3 = NULL;
 
     while (fgets(line, MAX_LINE_LENGTH, stdin)) {
-        // parse action
-        strncpy(action, line, ACTION_SIZE);
-        action[ACTION_SIZE] = '\0';
+        int cur_par = 0;
 
-        //parse parameters
-        int line_len = strlen(line);
-        if (line_len < MAX_LINE_LENGTH) {
-            int cur_par = 1;
-            for (int i = ACTION_SIZE + 2, j = i; i < line_len; i++) {
-                if (line[i] == '"' && line[i - 1] != ' ') {
-                    char *dest = cur_par == 1 ? param1 : cur_par == 2 ? param2 : param3;
-                    strncpy(dest, &line[j], i - j);
-                    dest[i - j] = '\0';
-                    cur_par++;
-                    j = i + 3;
+        char *token = strtok(line, " ");
+        short int valid = 1;
+        while (token != NULL) {
+            unsigned long int len = strlen(token);
+
+            if (token[len - 1] == '\n'){
+                token[len - 1] = '\0';
+                len--;
+            }
+            if (token[0] == '"' && token[len - 1] == '"'){
+                token++;
+                token[len - 2] = '\0';
+                len -= 2;
+            } else if (cur_par > 0){
+                valid = 0;
+                break;
+            }
+            switch (cur_par) {
+                case 0: {
+                    action = token;
+                    break;
+                }
+                case 1: {
+                    param1 = token;
+                    break;
+                }
+                case 2: {
+                    param2 = token;
+                    break;
+                }
+                case 3: {
+                    param3 = token;
+                    break;
+                }
+                default: {
+                    break;
                 }
             }
-            if (cur_par >= 1 && cur_par <= 4) {
-                len1 = strlen(param1);
-                len2 = strlen(param2);
-                len3 = strlen(param3);
-                //printf("command: %s %s %s %s\n", action, param1, param2, param3);
-                //printf("lengths: %ld %ld %ld", len1, len2, len3);
+            token = strtok(NULL, " ");
+            cur_par++;
+        }
 
-                if (strcmp(action, action_add_ent) == 0) {
-                    if (len1 > 0 && len2 == 0 && len3 == 0) {
-                        add_ent(param1, mon_ent, mon_ent_list);
-                    }
-                } else if (strcmp(action, action_del_ent) == 0) {
-                    if (len1 > 0 && len2 == 0 && len3 == 0) {
-                        del_ent(param1, mon_ent, mon_ent_list, mon_rel, mon_rel_list);
-                    }
-                } else if (strcmp(action, action_add_rel) == 0) {
-                    if (len1 > 0 && len2 > 0 && len3 > 0) {
-                        add_rel(param1, param2, param3, mon_ent, mon_rel, mon_rel_list);
-                    }
-                } else if (strcmp(action, action_del_rel) == 0) {
-                    if (len1 > 0 && len2 > 0 && len3 > 0) {
-                        del_rel(param1, param2, param3, mon_rel, mon_rel_list);
-                    }
-                } else if (strcmp(action, action_report) == 0) {
-                    if (len1 == 0 && len2 == 0 && len3 == 0) {
-                        report(mon_ent_list, mon_rel, mon_rel_list);
-                    }
-                } else if (strncmp(action, "end", 3) == 0) {
-                    goto END;
+        if (cur_par >= 1 && cur_par <= 4 && action != NULL && valid) {
+            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
+
+            if (strcmp(action, action_add_ent) == 0) {
+                if ((param1 != NULL && param1[0] != '\0') &&
+                    (param2 == NULL || param2[0] == '\0')
+                    && (param3 == NULL || param3[0] == '\0')) {
+                    add_ent(param1, mon_ent, mon_ent_list);
                 }
-
-                // zero-out parameters
-                memset(param1, 0, MAX_PARAMETER_SIZE);
-                memset(param2, 0, MAX_PARAMETER_SIZE);
-                memset(param3, 0, MAX_PARAMETER_SIZE);
+            } else if (strcmp(action, action_del_ent) == 0) {
+                if ((param1 != NULL && param1[0] != '\0') &&
+                    (param2 == NULL || param2[0] == '\0')
+                    && (param3 == NULL || param3[0] == '\0')) {
+                    del_ent(param1, mon_ent, mon_ent_list, mon_rel, mon_rel_list);
+                }
+            } else if (strcmp(action, action_add_rel) == 0) {
+                if ((param1 != NULL && param1[0] != '\0') &&
+                    (param2 != NULL && param2[0] != '\0')
+                    && (param3 != NULL && param3[0] != '\0')) {
+                    add_rel(param1, param2, param3, mon_ent, mon_rel, mon_rel_list);
+                }
+            } else if (strcmp(action, action_del_rel) == 0) {
+                if ((param1 != NULL && param1[0] != '\0') &&
+                    (param2 != NULL && param2[0] != '\0')
+                    && (param3 != NULL && param3[0] != '\0')) {
+                    del_rel(param1, param2, param3, mon_rel, mon_rel_list);
+                }
+            } else if (strcmp(action, action_report) == 0) {
+                if ((param1 == NULL || param1[0] == '\0') &&
+                        (param2 == NULL || param2[0] == '\0')
+                        && (param3 == NULL || param3[0] == '\0')) {
+                    report(mon_ent_list, mon_rel, mon_rel_list);
+                }
+            } else if (strncmp(action, "end", 3) == 0) {
+                goto END;
             }
         }
+
+        memset(line, 0, MAX_LINE_LENGTH);
+        action = NULL;
+        param1 = NULL;
+        param2 = NULL;
+        param3 = NULL;
+        //printf("%s\n", line);
     }
+
     // free all memory (or not, lol)
     END:
     //clock_gettime(CLOCK_MONOTONIC_RAW, &end);
