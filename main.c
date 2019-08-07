@@ -1,23 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-//#include <sys/time.h>
+//#include <time.h>
 
 #define MAX_LINE_LENGTH 200
-#define INITIAL_MON_REL_SIZE 256
+#define INITIAL_MON_REL_SIZE 512
 #define INITIAL_MON_ENT_SIZE 2097152
-#define INITIAL_HASH_TABLE_SIZE 32
-
-#define ACTION_SIZE 6
+#define INITIAL_HASH_TABLE_SIZE 256
+#define RESIZE_THRESHOLD_PERCENTAGE 50
 
 #define ACTION_ADD_ENT "addent"
 #define ACTION_DEL_ENT "delent"
 #define ACTION_ADD_REL "addrel"
 #define ACTION_DEL_REL "delrel"
 #define ACTION_REPORT "report"
-
-#define MAX_PARAMETER_SIZE 40
 
 #define DOUBLE_HASHING_FACTOR 1
 
@@ -148,7 +144,7 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
     struct ht_item *item = ht_new_item(key, elem);
 
     if (resizing) {
-        if (ht->count >= ht->size * 70 / 100) {
+        if (ht->count >= ht->size * RESIZE_THRESHOLD_PERCENTAGE / 100) {
             ht_resize(ht, (unsigned long int) ht->size * 2);
         } else if (ht->count <= (ht->size * 10 / 100)) {
             //ht_resize(ht, (unsigned long int)ht->size / 2);
@@ -167,6 +163,7 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
         i++;
     }
 
+    int j = 1;
     while (ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
            ht->array[index]->djb2_hash != item->djb2_hash &&
@@ -175,8 +172,9 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
          * we linear probe from index to the end and then from start to end
          * (we are guaranteed to find a free spot because we double table size
          *  whenever there's just one left */
-        index++;
-        if (index == ht->size) {
+        index += j * j;
+        j++;
+        if (index >= ht->size) {
             index = 0;
         }
     }
@@ -217,15 +215,17 @@ void *ht_get(struct hash_table *ht, char *key) {
 
     /* Same as above, if we failed to find the item we linear probe
      * */
+    int j = 1;
     while ((index < ht->size || !half_probed) && item != NULL) {
-        if (index == ht->size) {
-            index = 0;
-            half_probed = 1;
-        }
         if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
-        index++;
+        index += j * j;
+        j++;
+        if (index >= ht->size) {
+            index = 0;
+            half_probed = 1;
+        }
         item = ht->array[index];
     }
 
@@ -254,7 +254,7 @@ void ht_delete(struct hash_table *ht, char *key) {
     }
 
     short int half_probed = 0;
-
+    int j = 1;
     while ((index < ht->size || !half_probed) && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
             strcmp(key, ht->array[index]->key) == 0) {
@@ -265,8 +265,9 @@ void ht_delete(struct hash_table *ht, char *key) {
             ht->count--;
             return;
         }
-        index++;
-        if (index == ht->size) {
+        index += j * j;
+        j++;
+        if (index >= ht->size) {
             index = 0;
             half_probed = 1;
         }
@@ -605,7 +606,7 @@ void report(struct list *mon_ent_list, struct hash_table *mon_rel, struct list *
              * */
             char *best_ents_arr[MAX_ENTITIES_NUMBER];
             int best_ents_arr_len = 0;
-            int count = 0;
+            unsigned long int count = 0;
             struct hash_table *rel_table = ht_get(mon_rel, cur_rel);
             struct list_node *ent = mon_ent_list->head;
             while (ent != NULL) {
@@ -631,7 +632,7 @@ void report(struct list *mon_ent_list, struct hash_table *mon_rel, struct list *
             for (int i = 0; i < best_ents_arr_len; i++) {
                 printf("\"%s\" ", best_ents_arr[i]);
             }
-            printf("%d;", count);
+            printf("%ld;", count);
             if (j + 1 < rels_len) {
                 printf(" ");
             }
@@ -642,8 +643,8 @@ void report(struct list *mon_ent_list, struct hash_table *mon_rel, struct list *
 }
 
 int main(void) {
-    //struct timespec start, end;
-    //clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    /*struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);*/
     freopen("input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
     struct hash_table *mon_ent, *mon_rel;
@@ -744,7 +745,7 @@ int main(void) {
                         && (param3 == NULL || param3[0] == '\0')) {
                     report(mon_ent_list, mon_rel, mon_rel_list);
                 }
-            } else if (strncmp(action, "end", 3) == 0) {
+            } else if (strcmp(action, "end") == 0) {
                 goto END;
             }
         }
@@ -754,14 +755,13 @@ int main(void) {
         param1 = NULL;
         param2 = NULL;
         param3 = NULL;
-        //printf("%s\n", line);
     }
 
     // free all memory (or not, lol)
     END:
-    //clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    //uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    //printf("%f ms", (double)delta_us/1000);
+    /*clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms", (double)delta_us/1000);*/
 
     exit(0);
 }

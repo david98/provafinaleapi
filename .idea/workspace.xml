@@ -5,7 +5,7 @@
       <config projectName="provafinaleapi" targetName="provafinaleapi" />
     </generated>
   </component>
-  <component name="CMakeSettings">
+  <component name="CMakeSettings" AUTO_RELOAD="true">
     <configurations>
       <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
     </configurations>
@@ -13,7 +13,10 @@
   <component name="ChangeListManager">
     <list default="true" id="a7cc393e-cf6b-45d3-8450-4060e33cf520" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/clion-log.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/clion-log.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/provafinaleapi.dir/C.includecache" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/provafinaleapi.dir/C.includecache" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/input.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/input.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/output.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/output.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" afterDir="false" />
@@ -128,7 +131,9 @@
       <workItem from="1564862690634" duration="3049000" />
       <workItem from="1564871697400" duration="349000" />
       <workItem from="1565085078189" duration="31000" />
-      <workItem from="1565085138959" duration="8745000" />
+      <workItem from="1565085138959" duration="10521000" />
+      <workItem from="1565105756647" duration="206000" />
+      <workItem from="1565190195704" duration="5178000" />
     </task>
     <servers />
   </component>
@@ -149,7 +154,9 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
           </value>
         </entry>
       </map>
