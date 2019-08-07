@@ -95,9 +95,9 @@ unsigned long int ht_get_index(struct hash_table *ht, char *key, int double_hash
     return index;
 }
 
-void ht_insert(struct hash_table *ht, char *key, void *elem);
+int ht_insert(struct hash_table *ht, char *key, void *elem);
 
-void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem);
+int ht_insert_no_resize(struct hash_table *ht, char *key, void *elem);
 
 void ht_destroy(struct hash_table *ht);
 
@@ -140,9 +140,12 @@ struct ht_item *ht_new_item(char *key, void *value) {
     return item;
 }
 
-void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing) {
+/*
+ * Returns 0 if elem was not already in ht, 1 otherwise (replacement)
+ * */
+int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing) {
     struct ht_item *item = ht_new_item(key, elem);
-
+    int return_value = 0;
     if (resizing) {
         if (ht->count >= ht->size * RESIZE_THRESHOLD_PERCENTAGE / 100) {
             ht_resize(ht, (unsigned long int) ht->size * 2);
@@ -179,20 +182,28 @@ void __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizin
         }
     }
     if (ht->array[index] != NULL && ht->array[index] != &HT_DELETED_ITEM) {
+        return_value = 1;
         free(ht->array[index]->key);
         free(ht->array[index]);
     } else {
         ht->count++;
     }
     ht->array[index] = item;
+    return return_value;
 }
 
-void ht_insert_no_resize(struct hash_table *ht, char *key, void *elem) {
-    __ht_insert(ht, key, elem, 0);
+/*
+ * Returns 0 if elem was not already in ht, 1 otherwise (replacement)
+ * */
+int ht_insert_no_resize(struct hash_table *ht, char *key, void *elem) {
+    return __ht_insert(ht, key, elem, 0);
 }
 
-void ht_insert(struct hash_table *ht, char *key, void *elem) {
-    __ht_insert(ht, key, elem, 1);
+/*
+ * Returns 0 if elem was not already in ht, 1 otherwise (replacement)
+ * */
+int ht_insert(struct hash_table *ht, char *key, void *elem) {
+    return __ht_insert(ht, key, elem, 1);
 }
 
 void *ht_get(struct hash_table *ht, char *key) {
@@ -232,7 +243,10 @@ void *ht_get(struct hash_table *ht, char *key) {
     return NULL;
 }
 
-void ht_delete(struct hash_table *ht, char *key) {
+/*
+ * Returns 0 if no element was deleted, 1 otherwise
+ * */
+int ht_delete(struct hash_table *ht, char *key) {
     unsigned long int index = ht_get_index(ht, key, 0);
     unsigned long int hash = djb2(key);
     int i = 1;
@@ -247,7 +261,7 @@ void ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            return;
+            return 1;
         }
         index = ht_get_index(ht, key, i);
         i++;
@@ -263,7 +277,7 @@ void ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            return;
+            return 1;
         }
         index += j * j;
         j++;
@@ -272,6 +286,8 @@ void ht_delete(struct hash_table *ht, char *key) {
             half_probed = 1;
         }
     }
+
+    return 0;
 }
 
 void print_keys(struct hash_table *ht) {
@@ -412,11 +428,10 @@ void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent
     /*
      * Check if entity_name is being monitored
      * */
-    if (ht_get(mon_ent, entity_name) == NULL) {
+    if (!ht_insert(mon_ent, entity_name, (void *) &dummy)) {
         /*
          * If not, start monitoring it
          * */
-        ht_insert(mon_ent, entity_name, (void *) &dummy);
         list_append(mon_ent_list, entity_name, (strlen(entity_name) + 1) * sizeof(char));
     }
 }
@@ -467,13 +482,9 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
 void del_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list,
              struct hash_table *mon_rel, struct list *mon_rel_list) {
     /*
-     * Check if entity_name is currently monitored
+     * Check if entity_name is currently monitored and remove it
      * */
-    if (ht_get(mon_ent, entity_name) != NULL) {
-        /*
-         * Remove it from monitored entities
-         * */
-        ht_delete(mon_ent, entity_name);
+    if (ht_delete(mon_ent, entity_name)) {
         list_remove(mon_ent_list, entity_name, strcmp);
         struct list_node *cur_rel = mon_rel_list->head;
         struct hash_table *rel_table;
@@ -764,4 +775,10 @@ int main(void) {
     printf("%f ms", (double)delta_us/1000);*/
 
     exit(0);
+}
+
+int smain(){
+    struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
+    printf("%d\n", ht_insert(ht, "key", "ciao"));
+    printf("%d\n", ht_insert(ht, "key", "ciao"));
 }
