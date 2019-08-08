@@ -7,7 +7,7 @@
 #define INITIAL_MON_REL_SIZE 512
 #define INITIAL_MON_ENT_SIZE 2097152
 #define INITIAL_HASH_TABLE_SIZE 256
-#define RESIZE_THRESHOLD_PERCENTAGE 50
+#define HT_RESIZE_THRESHOLD_PERCENTAGE 50
 
 #define ACTION_ADD_ENT "addent"
 #define ACTION_DEL_ENT "delent"
@@ -19,6 +19,9 @@
 
 #define MAX_ENTITIES_NUMBER 100000
 #define MAX_RELATIONSHIPS_NUMBER 100000
+
+#define DA_RESIZE_THRESHOLD_PERCENTAGE 98
+#define DA_GROWTH_FACTOR 2
 
 static const int dummy = 1;
 
@@ -147,7 +150,7 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
     struct ht_item *item = ht_new_item(key, elem);
     int return_value = 0;
     if (resizing) {
-        if (ht->count >= ht->size * RESIZE_THRESHOLD_PERCENTAGE / 100) {
+        if (ht->count >= ht->size * HT_RESIZE_THRESHOLD_PERCENTAGE / 100) {
             ht_resize(ht, (unsigned long int) ht->size * 2);
         } else if (ht->count <= (ht->size * 10 / 100)) {
             //ht_resize(ht, (unsigned long int)ht->size / 2);
@@ -422,6 +425,72 @@ void list_destroy(struct list *list) {
         cur = next;
     }
     free(list);
+}
+
+struct din_arr {
+    void **array;
+    unsigned long int next_free;
+    size_t size;
+};
+
+struct din_arr* din_arr_new(size_t initial_size){
+    struct din_arr *arr = malloc(sizeof(struct din_arr));
+    if (arr == NULL){
+        exit(666);
+    }
+    arr->array = calloc(initial_size, sizeof(void *));
+    if (arr->array == NULL){
+        exit(666);
+    }
+    arr->size = initial_size;
+    arr->next_free = 0;
+    return arr;
+}
+
+size_t din_arr_resize(struct din_arr *arr, size_t new_size){
+    if (new_size <= arr->size){
+        return arr->size;
+    }
+    arr->array = realloc(arr->array, sizeof(void*) * new_size);
+    if (arr->array == NULL){
+        exit(666);
+    }
+    arr->size = new_size;
+    return new_size;
+}
+
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
+    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100){
+        size_t old_size = arr->size;
+        size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
+        if (new_size <= old_size){
+            exit(666);
+        }
+    }
+    arr->array[arr->next_free] = malloc(elem_size);
+    memcpy(arr->array[arr->next_free], elem, elem_size);
+    arr->next_free++;
+}
+
+void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
+    for(size_t i = 0; i < arr->next_free; i++){
+        if( cmp(arr->array[i], elem) == 0){
+            free(arr->array[i]);
+            arr->array[i] = arr->array[--arr->next_free];
+        }
+    }
+}
+
+void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)){
+    qsort(arr->array, arr->next_free, sizeof(void *), cmp);
+}
+
+void din_arr_destroy(struct din_arr *arr){
+    size_t i;
+    for (i = 0; i < arr->size; i++){
+        free(arr->array[i]);
+    }
+    free(arr);
 }
 
 void add_ent(char *entity_name, struct hash_table *mon_ent, struct list *mon_ent_list) {
@@ -776,9 +845,41 @@ int main(void) {
 
     exit(0);
 }
-
+/*
 int smain(){
+    struct list *list = list_new();
+    struct din_arr *arr = din_arr_new(40000);
     struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
-    printf("%d\n", ht_insert(ht, "key", "ciao"));
-    printf("%d\n", ht_insert(ht, "key", "ciao"));
-}
+    const int test_size = 20000;
+    struct timespec start, end;
+    printf("APPEND\n");
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    for (int i = 0; i < test_size; i++){
+        list_append(list, ht, sizeof(struct hash_table*));
+    }
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms\n", (double)delta_us/1000);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    for (int i = 0; i < test_size; i++){
+        din_arr_append(arr, ht, sizeof(struct hash_table*));
+    }
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms", (double)delta_us/1000);
+    printf("REMOVE\n");
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    for (int i = 0; i < test_size; i++){
+        list_remove(list, ht, sizeof(struct hash_table*));
+    }
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms\n", (double)delta_us/1000);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    for (int i = 0; i < test_size; i++){
+        din_arr_append(arr, ht, sizeof(struct hash_table*));
+    }
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("%f ms", (double)delta_us/1000);
+}*/
