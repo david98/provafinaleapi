@@ -24,7 +24,11 @@
 #define DA_GROWTH_FACTOR 2
 #define INITIAL_DA_SIZE 100
 
+#define INITIAL_DM_ROWS 256
+#define INITIAL_DM_COLS 256
+
 static const int dummy = 1;
+static unsigned long long int next_free_id = 0;
 
 int compare_strings(const void *a, const void *b) {
     const char *pa = *(const char **) a;
@@ -431,298 +435,337 @@ void list_destroy(struct list *list) {
 struct din_arr {
     void **array;
     unsigned long int next_free;
+    size_t non_null_count;
     size_t size;
 };
 
-struct din_arr* din_arr_new(size_t initial_size){
+struct din_arr *din_arr_new(size_t initial_size) {
     struct din_arr *arr = malloc(sizeof(struct din_arr));
-    if (arr == NULL){
+    if (arr == NULL) {
         exit(666);
     }
     arr->array = calloc(initial_size, sizeof(void *));
-    if (arr->array == NULL){
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = initial_size;
     arr->next_free = 0;
+    arr->non_null_count = 0;
     return arr;
 }
 
-size_t din_arr_resize(struct din_arr *arr, size_t new_size){
-    if (new_size <= arr->size){
+size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
+    if (new_size <= arr->size) {
         return arr->size;
     }
-    arr->array = realloc(arr->array, sizeof(void*) * new_size);
-    if (arr->array == NULL){
+    arr->array = realloc(arr->array, sizeof(void *) * new_size);
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = new_size;
     return new_size;
 }
 
-void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
-    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100){
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
+    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
         size_t old_size = arr->size;
         size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
-        if (new_size <= old_size){
+        if (new_size <= old_size) {
             exit(666);
         }
     }
-    arr->array[arr->next_free] = malloc(elem_size);
-    memcpy(arr->array[arr->next_free], elem, elem_size);
-    arr->next_free++;
+    if (elem != NULL) {
+        arr->array[arr->next_free] = malloc(elem_size);
+        memcpy(arr->array[arr->next_free], elem, elem_size);
+        arr->next_free++;
+        arr->non_null_count++;
+    }
+}
+
+void din_arr_insert(struct din_arr *arr, unsigned long int index, void *elem, size_t elem_size) {
+    if (index >= arr->size) {
+        size_t old_size = arr->size;
+        size_t new_size = din_arr_resize(arr, index + 1);
+        if (new_size <= old_size) {
+            exit(666);
+        }
+    }
+    if (elem != NULL) {
+        if (arr->array[index] != NULL) {
+            free(arr->array[index]);
+        } else {
+            arr->non_null_count++;
+        }
+        arr->array[index] = malloc(elem_size);
+        memcpy(arr->array[arr->next_free], elem, elem_size);
+    } else {
+        arr->non_null_count--;
+        free(arr->array[index]);
+        arr->array[index] = elem;
+    }
 }
 
 void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
-    for(size_t i = 0; i < arr->next_free; i++){
-        if( cmp(arr->array[i], elem) == 0){
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (cmp(arr->array[i], elem) == 0) {
             free(arr->array[i]);
-            arr->array[i] = arr->array[--arr->next_free];
+            arr->array[i] = NULL;
         }
     }
 }
 
-void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)){
+void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)) {
     qsort(arr->array, arr->next_free, sizeof(void *), cmp);
 }
 
-void din_arr_destroy(struct din_arr *arr){
+void din_arr_zero(struct din_arr *arr) {
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (arr->array[i] != NULL) {
+            free(arr->array[i]);
+            arr->array[i] = NULL;
+        }
+    }
+    arr->non_null_count = 0;
+    arr->next_free = 0;
+}
+
+void din_arr_destroy(struct din_arr *arr) {
     size_t i;
-    for (i = 0; i < arr->size; i++){
+    for (i = 0; i < arr->size; i++) {
         free(arr->array[i]);
     }
+    free(arr->array);
     free(arr);
 }
 
-void add_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_ent_list) {
-    /*
-     * Check if entity_name is being monitored
-     * */
-    if (!ht_insert(mon_ent, entity_name, (void *) &dummy)) {
-        /*
-         * If not, start monitoring it
-         * */
+struct din_mat {
+    int **rows;
+    size_t n_rows;
+    size_t n_cols;
+    size_t *cols_non_zero_count;
+    size_t *rows_non_zero_count;
+};
+
+struct din_mat *din_mat_new(size_t initial_num_rows, size_t initial_num_cols) {
+    struct din_mat *mat = malloc(sizeof(struct din_mat));
+    if (mat == NULL) {
+        exit(666);
+    }
+    mat->rows = malloc(sizeof(int *) * initial_num_rows);
+    if (mat->rows == NULL) {
+        exit(666);
+    }
+    for (size_t i = 0; i < initial_num_rows; i++) {
+        mat->rows[i] = calloc(initial_num_cols, sizeof(int));
+        if (mat->rows[i] == NULL) {
+            exit(666);
+        }
+    }
+    mat->n_rows = initial_num_rows;
+    mat->n_cols = initial_num_cols;
+    mat->rows_non_zero_count = calloc(initial_num_rows, sizeof(size_t));
+    mat->cols_non_zero_count = calloc(initial_num_cols, sizeof(size_t));
+    if (mat->rows_non_zero_count == NULL || mat->cols_non_zero_count == NULL) {
+        exit(666);
+    }
+    return mat;
+}
+
+void din_mat_resize(struct din_mat *mat, size_t new_rows, size_t new_cols) {
+    mat->rows = realloc(mat->rows, sizeof(int *) * new_rows);
+    if (mat->rows == NULL) {
+        exit(666);
+    }
+    for (size_t i = 0; i < new_rows; i++) {
+        mat->rows[i] = realloc(mat->rows[i], sizeof(int) * new_cols);
+        size_t j = i < mat->n_rows ? mat->n_cols : 0;
+        for (; j < new_cols; j++) {
+            mat->rows[i][j] = 0;
+        }
+        if (mat->rows[i] == NULL) {
+            exit(666);
+        }
+    }
+    mat->n_rows = new_rows;
+    mat->n_cols = new_cols;
+}
+
+int din_mat_set(struct din_mat *mat, unsigned long int row, unsigned long int col, int val) {
+    size_t new_rows = mat->n_rows;
+    size_t new_cols = mat->n_cols;
+    if (row >= mat->n_rows) {
+        new_rows = row + 1;
+    }
+    if (col >= mat->n_cols) {
+        new_cols = col + 1;
+    }
+    if (new_rows >= mat->n_rows || new_cols >= mat->n_cols) {
+        din_mat_resize(mat, new_rows, new_cols);
+    }
+    if (val != 0) {
+        mat->cols_non_zero_count[col]++;
+        mat->rows_non_zero_count[row]++;
+    } else if (mat->rows[row][col] != 0) {
+        mat->cols_non_zero_count[col]--;
+        mat->rows_non_zero_count[row]--;
+    }
+    mat->rows[row][col] = val;
+}
+
+int din_mat_get(struct din_mat *mat, unsigned long int row, unsigned long int col) {
+    if (row < mat->n_rows && col < mat->n_cols) {
+        return mat->rows[row][col];
+    } else {
+        exit(666);
+    }
+}
+
+void din_mat_set_column(struct din_mat *mat, unsigned long int col, int val) {
+    if (col >= mat->n_cols) {
+        din_mat_resize(mat, mat->n_rows, col + 1);
+    }
+    for (size_t i = 0; i < mat->n_rows; i++) {
+        din_mat_set(mat, i, col, val);
+    }
+}
+
+void din_mat_set_row(struct din_mat *mat, unsigned long int row, int val) {
+    if (row >= mat->n_rows) {
+        din_mat_resize(mat, row + 1, mat->n_cols);
+    }
+    for (size_t i = 0; i < mat->n_rows; i++) {
+        din_mat_set(mat, row, i, val);
+    }
+}
+
+void din_mat_print(struct din_mat *mat) {
+    for (size_t i = 0; i < mat->n_rows; i++) {
+        for (size_t j = 0; j < mat->n_cols; j++) {
+            printf("%d ", mat->rows[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void add_ent(char *entity_name, struct hash_table *mon_ent_ids,
+             struct din_arr *mon_ent_list, struct hash_table *mon_ent_ids_inverse) {
+    if (ht_get(mon_ent_ids, entity_name) == NULL) {
+        unsigned long long int *id = malloc(sizeof(unsigned long long int));
+        if (id == NULL) {
+            exit(666);
+        }
+        *id = next_free_id;
+        next_free_id++;
+        char *key = malloc(sizeof(char) * 50);
+        if (key == NULL){
+            exit(666);
+        }
+        sprintf(key, "%llu", *id);
+        ht_insert(mon_ent_ids, entity_name, id);
+        ht_insert(mon_ent_ids_inverse, key, strdup(entity_name));
+        free(key);
         din_arr_append(mon_ent_list, entity_name, (strlen(entity_name) + 1) * sizeof(char));
     }
 }
 
-void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table *mon_ent,
+void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table *mon_ent_ids,
              struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
-    /*
-     * Check if both origin_ent and dest_ent
-     * are being monitored
-     * */
-    if (ht_get(mon_ent, origin_ent) != NULL && ht_get(mon_ent, dest_ent) != NULL) {
-        /*
-         * Try to retrieve the hash table for rel_name
-         * */
-        struct hash_table *rel_table = ht_get(mon_rel, rel_name);
-        if (rel_table == NULL) {
-            /*
-             * If we get here, rel_name was not being monitored:
-             * we instantiate a new hash table for it and insert
-             * it into mon_rel
-             * */
-            rel_table = ht_new(INITIAL_HASH_TABLE_SIZE);
-            ht_insert(mon_rel, rel_name, rel_table);
-            din_arr_append(mon_rel_list, rel_name, sizeof(char) * (strlen(rel_name) + 1));
+    unsigned long long int *origin_id = ht_get(mon_ent_ids, origin_ent);
+    unsigned long long int *dest_id = ht_get(mon_ent_ids, dest_ent);
+    if (origin_id != NULL && dest_id != NULL) {
+        struct din_mat *rel_mat = ht_get(mon_rel, rel_name);
+        if (rel_mat == NULL) {
+            rel_mat = din_mat_new(INITIAL_DM_ROWS, INITIAL_DM_COLS);
+            ht_insert(mon_rel, rel_name, rel_mat);
+            din_arr_append(mon_rel_list, rel_name,
+                           (strlen(rel_name) + 1) * sizeof(char));
         }
-        /*
-         * We try to retrieve the hash table containing all entities
-         * that are in rel_name with dest_ent
-         * */
-        struct hash_table *dest_table = ht_get(rel_table, dest_ent);
-        if (dest_table == NULL) {
-            /*
-             * If we're here, origin_ent is the first entity
-             * to be in rel_name with dest_ent, so we create
-             * a new hash_table and insert into the table for
-             * rel_name
-             * */
-            dest_table = ht_new(INITIAL_HASH_TABLE_SIZE);
-            ht_insert(rel_table, dest_ent, dest_table);
-        }
-        /*
-         * We insert a flag in the table for dest_ent
-         * */
-        ht_insert(dest_table, origin_ent, (void *) &dummy);
+        din_mat_set(rel_mat, *origin_id, *dest_id, 1);
     }
 }
 
-void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_ent_list,
+void del_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table *mon_ent_ids,
              struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
-    /*
-     * Check if entity_name is currently monitored and remove it
-     * */
-    if (ht_delete(mon_ent, entity_name)) {
-        din_arr_remove(mon_ent_list, entity_name, strcmp);
-        struct hash_table *rel_table;
-        struct list *rels_to_remove = list_new();
-        /*
-        * Delete entity_name from all relationships
-        * */
-        for (unsigned long int i = 0; i < mon_rel_list->next_free; i++){
-            char *cur_rel = mon_rel_list->array[i];
-            rel_table = ht_get(mon_rel, cur_rel);
-            if (rel_table != NULL) {
-                /*
-                 * Delete all relationships towards entity_name
-                 * */
-                struct hash_table *dest_table = ht_get(rel_table, entity_name);
-                if (dest_table != NULL) {
-                    ht_destroy(dest_table);
-                    ht_delete(rel_table, entity_name);
-                }
-                /*
-                 * Delete all relationships from entity_name
-                 * */
-                for (unsigned long int j = 0; j < mon_ent_list->next_free; j++){
-                    char *ent = mon_ent_list->array[j];
-                    dest_table = ht_get(rel_table, ent);
-                    if (dest_table != NULL) {
-                        ht_delete(dest_table, entity_name);
-                        if (dest_table->count == 0) {
-                            ht_delete(rel_table, ent);
-                            ht_destroy(dest_table);
-                        }
+    unsigned long long int *origin_id = ht_get(mon_ent_ids, origin_ent);
+    unsigned long long int *dest_id = ht_get(mon_ent_ids, dest_ent);
+    if (origin_id != NULL && dest_id != NULL) {
+        struct din_mat *rel_mat = ht_get(mon_rel, rel_name);
+        if (rel_mat != NULL) {
+            int flag = din_mat_get(rel_mat, *origin_id, *dest_id);
+            din_mat_set(rel_mat, *origin_id, *dest_id, 0);
+        }
+    }
+}
+
+void del_ent(char *entity_name, struct hash_table *mon_ent_ids, struct hash_table *mon_rel,
+             struct din_arr *mon_rel_list) {
+    unsigned long long int *ent_id = ht_get(mon_ent_ids, entity_name);
+    if (ent_id != NULL) {
+        for (size_t i = 0; i < mon_rel_list->next_free; i++) {
+            if (mon_rel_list->array[i] != NULL) {
+                struct din_mat *rel_mat = ht_get(mon_rel, mon_rel_list->array[i]);
+                din_mat_set_column(rel_mat, *ent_id, 0);
+                din_mat_set_row(rel_mat, *ent_id, 0);
+            }
+        }
+    }
+}
+
+void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel,
+        struct din_arr *mon_rel_list, struct hash_table *mon_ent_ids_inverse) {
+    din_arr_sort(mon_rel_list, strcmp);
+    short int printed = 0;
+    for (size_t i = 0; i < mon_rel_list->size; i++) {
+        char *rel_name = mon_rel_list->array[i];
+        if (rel_name != NULL) {
+            struct din_mat *rel_mat = ht_get(mon_rel, rel_name);
+            if (rel_mat != NULL) {
+                size_t max_count = 0;
+                struct din_arr *best_ents = din_arr_new(INITIAL_DA_SIZE);
+                for (size_t j = 0; j < rel_mat->n_rows; j++) {
+                    if (rel_mat->rows_non_zero_count[j] > max_count) {
+                        din_arr_zero(best_ents);
+                        din_arr_append(best_ents, &j, sizeof(size_t));
+                        max_count = rel_mat->rows_non_zero_count[j];
+                    } else if (rel_mat->rows_non_zero_count[j] == max_count && max_count > 0) {
+                        din_arr_append(best_ents, &j, sizeof(size_t));
                     }
                 }
-                /*
-                 * If the relationship table is now empty,
-                 * mark it for removal from monitored relationships
-                 * */
-                if (rel_table->count == 0) {
-                    list_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
+                if (max_count > 0) {
+                    printed = 1;
+                    printf("\"%s\"", rel_name);
+                    char key[50];
+                    for (size_t k = 0; k < best_ents->next_free; k++) {
+                        sprintf(key, "%llu", *(unsigned long long int *) best_ents->array[k]);
+                        char *ent_name = ht_get(mon_ent_ids_inverse, key);
+                        printf(" \"%s\"", ent_name);
+                    }
+                    printf(" %lu;\n", max_count);
                 }
-            }
-        }
-        /*
-         * Remove all relationships marked for removal
-         * */
-        struct list_node *rel = rels_to_remove->head;
-        while (rel != NULL) {
-            rel_table = ht_get(mon_rel, rel->elem);
-            ht_destroy(rel_table);
-            ht_delete(mon_rel, rel->elem);
-            din_arr_remove(mon_rel_list, rel->elem, strcmp);
-            rel = rel->next;
-        }
-        list_destroy(rels_to_remove);
-    }
-}
-
-void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
-             struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
-    struct hash_table *rel_table = ht_get(mon_rel, rel_name);
-    /*
-     * Check if rel_name is in mon_rel
-     * */
-    if (rel_table != NULL) {
-        struct hash_table *dest_table = ht_get(rel_table, dest_ent);
-        /*
-         * Check if there's any "arrow"
-         * going to dest_ent
-         * */
-        if (dest_table != NULL) {
-            /*
-             * If there's an "arrow" from origin_ent
-             * to dest_ent, delete it
-             * */
-
-            ht_delete(dest_table, origin_ent);
-            /*
-             * If there's no other "arrow" going to dest_ent,
-             * remove it from rel_table
-             * */
-            if (dest_table->count == 0) {
-                ht_destroy(dest_table);
-                ht_delete(rel_table, dest_ent);
-                /*
-                 * If rel_table is now empty (there was just that one "arrow"),
-                 * delete it and remove rel_name from mon_rel
-                 * */
-                if (rel_table->count == 0) {
-                    ht_destroy(rel_table);
-                    ht_delete(mon_rel, rel_name);
-                    din_arr_remove(mon_rel_list, rel_name, strcmp);
-                }
+                din_arr_destroy(best_ents);
             }
         }
     }
-}
-
-void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
-    if (mon_rel_list->next_free == 0) {
+    if (!printed) {
         printf("none\n");
-    } else {
-        /*
-         * Sort mon_rel_list in ascending alphabetical order
-         * */
-        din_arr_sort(mon_rel_list, compare_strings);
-
-        /*
-         * Iterate on the now ordered array of all
-         * monitored relationships
-         * */
-        for (unsigned long int j = 0; j < mon_rel_list->next_free; j++) {
-            char *cur_rel = mon_rel_list->array[j];
-            /*
-             * best_ents_arr will hold the entities with the most
-             * incoming "arrows" for rels[j]
-             * */
-            char *best_ents_arr[MAX_ENTITIES_NUMBER];
-            int best_ents_arr_len = 0;
-            unsigned long int count = 0;
-            struct hash_table *rel_table = ht_get(mon_rel, cur_rel);
-            for (unsigned long int i = 0; i < mon_ent_list->next_free; i++){
-                char *ent = mon_ent_list->array[i];
-                struct hash_table *dest_table = ht_get(rel_table, ent);
-                if (dest_table != NULL && dest_table->count >= count) {
-                    if (dest_table->count > count) {
-                        best_ents_arr_len = 0;
-                        count = dest_table->count;
-                    }
-                    best_ents_arr[best_ents_arr_len] = ent;
-                    best_ents_arr_len++;
-
-                }
-            }
-
-            /*
-             * Sort best_ents_arr in ascending alphabetical order
-             */
-            qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
-
-            printf("\"%s\" ", cur_rel);
-            for (int i = 0; i < best_ents_arr_len; i++) {
-                printf("\"%s\" ", best_ents_arr[i]);
-            }
-            printf("%ld;", count);
-            if (j + 1 < mon_rel_list->next_free) {
-                printf(" ");
-            }
-        }
-        printf("\n");
     }
-
 }
 
 int main(void) {
-    /*struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);*/
     freopen("input.txt", "r", stdin);
-    freopen("output.txt", "w", stdout);
-    struct hash_table *mon_ent, *mon_rel;
+    //freopen("output.txt", "w", stdout);
+
+    struct hash_table *mon_ent_ids, *mon_rel, *mon_ent_ids_inverse;
     struct din_arr *mon_ent_list, *mon_rel_list;
-    char line[MAX_LINE_LENGTH];
 
-    mon_ent = ht_new(INITIAL_MON_ENT_SIZE);
-    mon_rel = ht_new(INITIAL_MON_REL_SIZE);
-
-
+    mon_ent_ids = ht_new(INITIAL_MON_ENT_SIZE);
+    mon_ent_ids_inverse = ht_new(INITIAL_MON_ENT_SIZE);
     mon_ent_list = din_arr_new(INITIAL_MON_ENT_SIZE);
+
+    mon_rel = ht_new(INITIAL_MON_REL_SIZE);
     mon_rel_list = din_arr_new(INITIAL_MON_REL_SIZE);
 
+    char line[MAX_LINE_LENGTH];
     const char *action_add_ent = ACTION_ADD_ENT;
     const char *action_del_ent = ACTION_DEL_ENT;
     const char *action_add_rel = ACTION_ADD_REL;
@@ -740,15 +783,15 @@ int main(void) {
         while (token != NULL) {
             unsigned long int len = strlen(token);
 
-            if (token[len - 1] == '\n'){
+            if (token[len - 1] == '\n') {
                 token[len - 1] = '\0';
                 len--;
             }
-            if (token[0] == '"' && token[len - 1] == '"'){
+            if (token[0] == '"' && token[len - 1] == '"') {
                 token++;
                 token[len - 2] = '\0';
                 len -= 2;
-            } else if (cur_par > 0){
+            } else if (cur_par > 0) {
                 valid = 0;
                 break;
             }
@@ -784,31 +827,31 @@ int main(void) {
                 if ((param1 != NULL && param1[0] != '\0') &&
                     (param2 == NULL || param2[0] == '\0')
                     && (param3 == NULL || param3[0] == '\0')) {
-                    add_ent(param1, mon_ent, mon_ent_list);
+                    add_ent(param1, mon_ent_ids, mon_ent_list, mon_ent_ids_inverse);
                 }
             } else if (strcmp(action, action_del_ent) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
                     (param2 == NULL || param2[0] == '\0')
                     && (param3 == NULL || param3[0] == '\0')) {
-                    del_ent(param1, mon_ent, mon_ent_list, mon_rel, mon_rel_list);
+                    del_ent(param1, mon_ent_ids, mon_rel, mon_rel_list);
                 }
             } else if (strcmp(action, action_add_rel) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
                     (param2 != NULL && param2[0] != '\0')
                     && (param3 != NULL && param3[0] != '\0')) {
-                    add_rel(param1, param2, param3, mon_ent, mon_rel, mon_rel_list);
+                    add_rel(param1, param2, param3, mon_ent_ids, mon_rel, mon_rel_list);
                 }
             } else if (strcmp(action, action_del_rel) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
                     (param2 != NULL && param2[0] != '\0')
                     && (param3 != NULL && param3[0] != '\0')) {
-                    del_rel(param1, param2, param3, mon_rel, mon_rel_list);
+                    del_rel(param1, param2, param3, mon_ent_ids, mon_rel, mon_rel_list);
                 }
             } else if (strcmp(action, action_report) == 0) {
                 if ((param1 == NULL || param1[0] == '\0') &&
-                        (param2 == NULL || param2[0] == '\0')
-                        && (param3 == NULL || param3[0] == '\0')) {
-                    report(mon_ent_list, mon_rel, mon_rel_list);
+                    (param2 == NULL || param2[0] == '\0')
+                    && (param3 == NULL || param3[0] == '\0')) {
+                    report(mon_ent_list, mon_rel, mon_rel_list, mon_ent_ids_inverse);
                 }
             } else if (strcmp(action, "end") == 0) {
                 goto END;
@@ -824,47 +867,13 @@ int main(void) {
 
     // free all memory (or not, lol)
     END:
-    /*clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms", (double)delta_us/1000);*/
 
     exit(0);
 }
-/*
-int smain(){
-    struct list *list = list_new();
-    struct din_arr *arr = din_arr_new(40000);
-    struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
-    const int test_size = 20000;
-    struct timespec start, end;
-    printf("APPEND\n");
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        list_append(list, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms\n", (double)delta_us/1000);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        din_arr_append(arr, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms", (double)delta_us/1000);
-    printf("REMOVE\n");
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        list_remove(list, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms\n", (double)delta_us/1000);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        din_arr_append(arr, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms", (double)delta_us/1000);
-}*/
+
+int smain() {
+    struct din_mat *mat = din_mat_new(10, 10);
+    din_mat_set_column(mat, 11, 1);
+    printf("%lu\n\n", mat->cols_non_zero_count[11]);
+    din_mat_print(mat);
+}

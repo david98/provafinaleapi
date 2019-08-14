@@ -13,8 +13,9 @@
   <component name="ChangeListManager">
     <list default="true" id="a7cc393e-cf6b-45d3-8450-4060e33cf520" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/provafinaleapi.dir/C.includecache" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/provafinaleapi.dir/C.includecache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmake-build-debug/callgrind.out.7483" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/input.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/input.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/output.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/output.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/main.c" afterDir="false" />
     </list>
@@ -132,7 +133,14 @@
       <workItem from="1565190195704" duration="5364000" />
       <workItem from="1565218121384" duration="1195000" />
       <workItem from="1565259146182" duration="4793000" />
-      <workItem from="1565299367022" duration="888000" />
+      <workItem from="1565299367022" duration="2147000" />
+      <workItem from="1565453923322" duration="24000" />
+      <workItem from="1565453974455" duration="1020000" />
+      <workItem from="1565513673451" duration="2869000" />
+      <workItem from="1565600506241" duration="7674000" />
+      <workItem from="1565645895527" duration="2104000" />
+      <workItem from="1565720640282" duration="8472000" />
+      <workItem from="1565777832492" duration="1157000" />
     </task>
     <servers />
   </component>
