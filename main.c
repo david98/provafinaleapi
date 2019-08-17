@@ -587,25 +587,19 @@ void din_mat_resize(struct din_mat *mat, size_t new_rows, size_t new_cols) {
     }
     for (size_t i = 0; i < new_rows; i++) {
         mat->rows[i] = realloc(mat->rows[i], sizeof(int) * new_cols);
-        size_t j = i < mat->n_rows ? mat->n_cols : 0;
-        for (; j < new_cols; j++) {
-            mat->rows[i][j] = 0;
-        }
         if (mat->rows[i] == NULL) {
             exit(666);
         }
+        size_t j = i < mat->n_rows ? mat->n_cols : 0;
+        memset(mat->rows[i] + j, 0, sizeof(int) * (new_cols - j));
     }
     mat->cols_non_zero_count = realloc(mat->cols_non_zero_count, sizeof(size_t) * new_cols);
     mat->rows_non_zero_count = realloc(mat->rows_non_zero_count, sizeof(size_t) * new_rows);
     if (mat->cols_non_zero_count == NULL || mat->rows_non_zero_count == NULL){
         exit(666);
     }
-    for (size_t i = mat->n_cols; i < new_cols; i++){
-        mat->cols_non_zero_count[i] = 0;
-    }
-    for (size_t i = mat->n_rows; i < new_rows; i++){
-        mat->rows_non_zero_count[i] = 0;
-    }
+    memset(mat->cols_non_zero_count + mat->n_cols, 0, sizeof(int) * (new_cols - mat->n_cols));
+    memset(mat->rows_non_zero_count + mat->n_rows, 0, sizeof(int) * (new_rows - mat->n_rows));
     mat->n_rows = new_rows;
     mat->n_cols = new_cols;
 }
@@ -731,7 +725,7 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
          * a new matrix and append rel_name to mon_rel_list
          * */
         if (rel_mat == NULL) {
-            rel_mat = din_mat_new(INITIAL_DM_ROWS, INITIAL_DM_COLS);
+            rel_mat = din_mat_new(*origin_id + 1, *dest_id + 1);
             ht_insert(mon_rel, rel_name, rel_mat);
             din_arr_append(mon_rel_list, rel_name,
                            (strlen(rel_name) + 1) * sizeof(char));
@@ -948,4 +942,5 @@ int smain() {
     struct din_mat *mat = din_mat_new(10, 10);
     din_mat_set(mat, 20, 20, 1);
     printf("%lu %lu\n", mat->n_rows, mat->n_cols);
+    din_mat_print(mat);
 }
