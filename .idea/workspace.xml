@@ -64,7 +64,7 @@
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="restartRequiresConfirmation" value="false" />
-    <property name="settings.editor.selected.configurable" value="MTConfigurable" />
+    <property name="settings.editor.selected.configurable" value="dynamic.analysis.tools.valgrind" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/cmake-build-debug/expected_output.txt" />
   </component>
   <component name="RecentsManager">
@@ -140,7 +140,13 @@
       <workItem from="1565600506241" duration="7674000" />
       <workItem from="1565645895527" duration="2104000" />
       <workItem from="1565720640282" duration="8472000" />
-      <workItem from="1565777832492" duration="1157000" />
+      <workItem from="1565777832492" duration="1301000" />
+      <workItem from="1565818140153" duration="2392000" />
+      <workItem from="1565953769653" duration="2005000" />
+      <workItem from="1565969902555" duration="3997000" />
+      <workItem from="1565976070339" duration="363000" />
+      <workItem from="1565989564106" duration="1369000" />
+      <workItem from="1565991012834" duration="3499000" />
     </task>
     <servers />
   </component>
