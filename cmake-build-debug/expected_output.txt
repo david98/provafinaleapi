@@ -1,24 +1,42 @@
 none
-"helps" "Eowyn" 1;
-"helps" "Eowyn" "Theoden" 1;
-"helps" "Eowyn" "Theoden" 1;
-"helps" "Eowyn" "Theoden" "Treebeard" 1;
-"helps" "Eowyn" "Samwise_Gamgee" "Theoden" "Treebeard" 1;
-"helps" "Eowyn" "Samwise_Gamgee" "Theoden" "Treebeard" 1;
-"helps" "Eomer" "Eowyn" "Samwise_Gamgee" "Theoden" 1;
-"helps" "Bilbo_Baggins" 2;
-"helps" "Bilbo_Baggins" 2;
-"helps" "Bilbo_Baggins" "Eomer" "Eowyn" "Legolas" 2;
-"helps" "Bilbo_Baggins" 3;
-"helps" "Bilbo_Baggins" 3;
-"helps" "Peregrin_Took" 3;
-"helps" "Peregrin_Took" 3;
-"helps" "Arwen" "Bilbo_Baggins" "Peregrin_Took" 3;
-"helps" "Arwen" "Bilbo_Baggins" "Peregrin_Took" 3;
-"helps" "Arwen" "Bilbo_Baggins" "Peregrin_Took" 3;
-"helps" "Bilbo_Baggins" "Peregrin_Took" 3;
-"helps" "Bilbo_Baggins" 3;
-"helps" "Bilbo_Baggins" 3;
-"helps" "Bilbo_Baggins" 4;
-"helps" "Bilbo_Baggins" 4;
-"helps" "Bilbo_Baggins" "Legolas" 4;
+none
+none
+none
+none
+none
+none
+none
+none
+none
+none
+none
+none
+none
+"knows" "Jonathan_Archer" 1;
+"knows" "Jonathan_Archer" 2;
+"knows" "Jonathan_Archer" 2;
+"knows" "Jonathan_Archer" 1;
+"knows" "Jonathan_Archer" 1;
+"knows" "Azan" "Jonathan_Archer" 1;
+"knows" "Azan" "Jonathan_Archer" 1;
+"knows" "Azan" "Jonathan_Archer" 1;
+"knows" "Jonathan_Archer" 3;
+"knows" "Jonathan_Archer" 3;
+"knows" "Jonathan_Archer" 3;
+"knows" "Jonathan_Archer" 4;
+"knows" "Jonathan_Archer" 5;
+"knows" "Jonathan_Archer" 5;
+"knows" "Jonathan_Archer" 6;
+"knows" "Jonathan_Archer" 7;
+"knows" "Jonathan_Archer" 7;
+"knows" "Jonathan_Archer" 7;
+"knows" "Jonathan_Archer" 8;
+"knows" "Jonathan_Archer" 8;
+"knows" "Jonathan_Archer" 8;
+"knows" "Jonathan_Archer" 8;
+"knows" "Jonathan_Archer" 9;
+"knows" "Jonathan_Archer" 9;
+"knows" "Jonathan_Archer" 9;
+"knows" "Jonathan_Archer" 9;
+"knows" "Jonathan_Archer" 9;
+"knows" "Jonathan_Archer" 9;

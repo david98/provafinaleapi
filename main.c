@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <time.h>
+//#include "xxhash.h"
+#include <time.h>
 
 #define MAX_LINE_LENGTH 200
 #define INITIAL_MON_REL_SIZE 512
@@ -33,7 +34,7 @@ int compare_strings(const void *a, const void *b) {
     return strcmp(pa, pb);
 }
 
-unsigned long
+static unsigned long inline
 djb2(unsigned char *str) {
     unsigned long hash = 5381;
     int c;
@@ -44,7 +45,7 @@ djb2(unsigned char *str) {
     return hash;
 }
 
-static unsigned long
+static unsigned long inline
 sdbm(str)
         unsigned char *str;
 {
@@ -57,9 +58,14 @@ sdbm(str)
     return hash;
 }
 
+static unsigned long long inline calcul_hash(const void* buffer)
+{
+    return djb2(buffer);
+}
+
 struct ht_item {
     char *key;
-    unsigned long int djb2_hash;
+    unsigned long long int hash;
     void *value;
 };
 
@@ -89,12 +95,15 @@ struct hash_table *ht_new(unsigned long int initial_size) {
     return ht;
 }
 
-unsigned long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round) {
-    unsigned long int a = djb2(key);
-    unsigned long int b = sdbm(key);
-    unsigned long int value = (a + double_hashing_round * (b + 1));
+unsigned long long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round) {
+    unsigned long long int a = calcul_hash(key);
+    unsigned long int b = 0;
+    if (double_hashing_round > 0){
+        b = sdbm(key);
+    }
+    unsigned long long int value = (a + double_hashing_round * (b + 1));
     value = value < 0 ? -value : value;
-    unsigned long int index = value & (ht->size - 1);
+    unsigned long long int index = value & (ht->size - 1);
 
     return index;
 }
@@ -138,7 +147,7 @@ struct ht_item *ht_new_item(char *key, void *value) {
             exit(1);
         } else {
             item->value = value;
-            item->djb2_hash = djb2(key);
+            item->hash = calcul_hash(key);
         }
     }
     return item;
@@ -164,7 +173,7 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
     while (i < max_double_hashing_rounds && ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
-           ht->array[index]->djb2_hash != item->djb2_hash &&
+           ht->array[index]->hash != item->hash &&
            strcmp(item->key, ht->array[index]->key) != 0) {
         index = ht_get_index(ht, item->key, i);
         i++;
@@ -173,7 +182,7 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
     int j = 1;
     while (ht->array[index] != NULL &&
            ht->array[index] != &HT_DELETED_ITEM &&
-           ht->array[index]->djb2_hash != item->djb2_hash &&
+           ht->array[index]->hash != item->hash &&
            strcmp(item->key, ht->array[index]->key) != 0) {
         /* we failed with double hashing, we switch to a different strategy:
          * we linear probe from index to the end and then from start to end
@@ -214,12 +223,12 @@ void *ht_get(struct hash_table *ht, char *key) {
     unsigned long int index = ht_get_index(ht, key, 0);
     struct ht_item *item = ht->array[index];
     int i = 1;
-    unsigned long int hash = djb2(key);
+    unsigned long int hash = calcul_hash(key);
     short int half_probed = 0;
     unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
 
     while (i < max_double_hashing_rounds && item != NULL) {
-        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0) {
+        if (item != &HT_DELETED_ITEM && hash == item->hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
 
@@ -232,7 +241,7 @@ void *ht_get(struct hash_table *ht, char *key) {
      * */
     int j = 1;
     while ((index < ht->size || !half_probed) && item != NULL) {
-        if (item != &HT_DELETED_ITEM && hash == item->djb2_hash && strcmp(item->key, key) == 0) {
+        if (item != &HT_DELETED_ITEM && hash == item->hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
         index += j * j;
@@ -252,13 +261,13 @@ void *ht_get(struct hash_table *ht, char *key) {
  * */
 int ht_delete(struct hash_table *ht, char *key) {
     unsigned long int index = ht_get_index(ht, key, 0);
-    unsigned long int hash = djb2(key);
+    unsigned long int hash = calcul_hash(key);
     int i = 1;
     unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
 
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
     while (i < max_double_hashing_rounds && ht->array[index] != NULL) {
-        if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
+        if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->hash == hash &&
             strcmp(key, ht->array[index]->key) == 0) {
 
             free(ht->array[index]->key);
@@ -274,7 +283,7 @@ int ht_delete(struct hash_table *ht, char *key) {
     short int half_probed = 0;
     int j = 1;
     while ((index < ht->size || !half_probed) && ht->array[index] != NULL) {
-        if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->djb2_hash == hash &&
+        if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->hash == hash &&
             strcmp(key, ht->array[index]->key) == 0) {
 
             free(ht->array[index]->key);
@@ -557,7 +566,7 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
     if (ht_delete(mon_ent, entity_name)) {
         din_arr_remove(mon_ent_list, entity_name, strcmp);
         struct hash_table *rel_table;
-        struct list *rels_to_remove = list_new();
+        struct din_arr *rels_to_remove = din_arr_new(INITIAL_DA_SIZE);
         /*
         * Delete entity_name from all relationships
         * */
@@ -592,22 +601,20 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
                  * mark it for removal from monitored relationships
                  * */
                 if (rel_table->count == 0) {
-                    list_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
+                    din_arr_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
                 }
             }
         }
         /*
          * Remove all relationships marked for removal
          * */
-        struct list_node *rel = rels_to_remove->head;
-        while (rel != NULL) {
-            rel_table = ht_get(mon_rel, rel->elem);
+        for (size_t idx = 0; idx < rels_to_remove->next_free; idx++){
+            rel_table = ht_get(mon_rel, rels_to_remove->array[idx]);
             ht_destroy(rel_table);
-            ht_delete(mon_rel, rel->elem);
-            din_arr_remove(mon_rel_list, rel->elem, strcmp);
-            rel = rel->next;
+            ht_delete(mon_rel, rels_to_remove->array[idx]);
+            din_arr_remove(mon_rel_list, rels_to_remove->array[idx], strcmp);
         }
-        list_destroy(rels_to_remove);
+        din_arr_destroy(rels_to_remove);
     }
 }
 
@@ -830,41 +837,8 @@ int main(void) {
 
     exit(0);
 }
-/*
-int smain(){
-    struct list *list = list_new();
-    struct din_arr *arr = din_arr_new(40000);
-    struct hash_table *ht = ht_new(INITIAL_HASH_TABLE_SIZE);
-    const int test_size = 20000;
-    struct timespec start, end;
-    printf("APPEND\n");
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        list_append(list, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms\n", (double)delta_us/1000);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        din_arr_append(arr, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms", (double)delta_us/1000);
-    printf("REMOVE\n");
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        list_remove(list, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms\n", (double)delta_us/1000);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    for (int i = 0; i < test_size; i++){
-        din_arr_append(arr, ht, sizeof(struct hash_table*));
-    }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("%f ms", (double)delta_us/1000);
-}*/
+
+int xmain(){
+    char lez[10] = "ciao";
+    printf("%llu", calcul_hash(lez));
+}

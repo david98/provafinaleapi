@@ -3,3 +3,6 @@
 
 CMakeFiles/provafinaleapi.dir/main.c.o
  /Users/dvolta/CLionProjects/provafinaleapi/main.c
+CMakeFiles/provafinaleapi.dir/xxhash.c.o
+ /Users/dvolta/CLionProjects/provafinaleapi/xxh3.h
+ /Users/dvolta/CLionProjects/provafinaleapi/xxhash.c
