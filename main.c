@@ -4,10 +4,12 @@
 //#include <time.h>
 
 #define MAX_LINE_LENGTH 200
-#define INITIAL_MON_REL_SIZE 512
+#define INITIAL_MON_REL_SIZE 2097152
 #define INITIAL_MON_ENT_SIZE 2097152
 #define INITIAL_HASH_TABLE_SIZE 256
 #define HT_RESIZE_THRESHOLD_PERCENTAGE 50
+
+#define COUNT_NAME "COUNTER"
 
 #define ACTION_ADD_ENT "addent"
 #define ACTION_DEL_ENT "delent"
@@ -434,13 +436,13 @@ struct din_arr {
     size_t size;
 };
 
-struct din_arr* din_arr_new(size_t initial_size){
+struct din_arr *din_arr_new(size_t initial_size) {
     struct din_arr *arr = malloc(sizeof(struct din_arr));
-    if (arr == NULL){
+    if (arr == NULL) {
         exit(666);
     }
     arr->array = calloc(initial_size, sizeof(void *));
-    if (arr->array == NULL){
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = initial_size;
@@ -448,23 +450,23 @@ struct din_arr* din_arr_new(size_t initial_size){
     return arr;
 }
 
-size_t din_arr_resize(struct din_arr *arr, size_t new_size){
-    if (new_size <= arr->size){
+size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
+    if (new_size <= arr->size) {
         return arr->size;
     }
-    arr->array = realloc(arr->array, sizeof(void*) * new_size);
-    if (arr->array == NULL){
+    arr->array = realloc(arr->array, sizeof(void *) * new_size);
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = new_size;
     return new_size;
 }
 
-void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
-    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100){
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
+    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
         size_t old_size = arr->size;
         size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
-        if (new_size <= old_size){
+        if (new_size <= old_size) {
             exit(666);
         }
     }
@@ -474,21 +476,21 @@ void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
 }
 
 void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
-    for(size_t i = 0; i < arr->next_free; i++){
-        if( cmp(arr->array[i], elem) == 0){
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (cmp(arr->array[i], elem) == 0) {
             free(arr->array[i]);
             arr->array[i] = arr->array[--arr->next_free];
         }
     }
 }
 
-void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)){
+void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)) {
     qsort(arr->array, arr->next_free, sizeof(void *), cmp);
 }
 
-void din_arr_destroy(struct din_arr *arr){
+void din_arr_destroy(struct din_arr *arr) {
     size_t i;
-    for (i = 0; i < arr->size; i++){
+    for (i = 0; i < arr->size; i++) {
         free(arr->array[i]);
     }
     free(arr);
@@ -514,24 +516,14 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
      * */
     if (ht_get(mon_ent, origin_ent) != NULL && ht_get(mon_ent, dest_ent) != NULL) {
         /*
-         * Try to retrieve the hash table for rel_name
-         * */
-        struct hash_table *rel_table = ht_get(mon_rel, rel_name);
-        if (rel_table == NULL) {
-            /*
-             * If we get here, rel_name was not being monitored:
-             * we instantiate a new hash table for it and insert
-             * it into mon_rel
-             * */
-            rel_table = ht_new(INITIAL_HASH_TABLE_SIZE);
-            ht_insert(mon_rel, rel_name, rel_table);
-            din_arr_append(mon_rel_list, rel_name, sizeof(char) * (strlen(rel_name) + 1));
-        }
-        /*
          * We try to retrieve the hash table containing all entities
          * that are in rel_name with dest_ent
          * */
-        struct hash_table *dest_table = ht_get(rel_table, dest_ent);
+        char key[MAX_LINE_LENGTH];
+        strcpy(key, rel_name);
+        strcat(key, "-");
+        strcat(key, dest_ent);
+        struct hash_table *dest_table = ht_get(mon_rel, key);
         if (dest_table == NULL) {
             /*
              * If we're here, origin_ent is the first entity
@@ -540,7 +532,11 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
              * rel_name
              * */
             dest_table = ht_new(INITIAL_HASH_TABLE_SIZE);
-            ht_insert(rel_table, dest_ent, dest_table);
+            ht_insert(mon_rel, key, dest_table);
+            if (!ht_insert(mon_rel, rel_name, &dummy)) {
+                din_arr_append(mon_rel_list, rel_name,
+                               sizeof(char) * (strlen(rel_name) + 1));
+            }
         }
         /*
          * We insert a flag in the table for dest_ent
@@ -556,97 +552,69 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
      * */
     if (ht_delete(mon_ent, entity_name)) {
         din_arr_remove(mon_ent_list, entity_name, strcmp);
-        struct hash_table *rel_table;
-        struct list *rels_to_remove = list_new();
         /*
         * Delete entity_name from all relationships
         * */
-        for (unsigned long int i = 0; i < mon_rel_list->next_free; i++){
+        char key[MAX_LINE_LENGTH];
+        for (unsigned long int i = 0; i < mon_rel_list->next_free; i++) {
             char *cur_rel = mon_rel_list->array[i];
-            rel_table = ht_get(mon_rel, cur_rel);
-            if (rel_table != NULL) {
-                /*
-                 * Delete all relationships towards entity_name
-                 * */
-                struct hash_table *dest_table = ht_get(rel_table, entity_name);
+            strcpy(key, cur_rel);
+            strcat(key, "-");
+            strcat(key, entity_name);
+            /*
+             * Delete all relationships towards entity_name
+             * */
+            struct hash_table *dest_table = ht_get(mon_rel, key);
+            if (dest_table != NULL) {
+                ht_destroy(dest_table);
+                ht_delete(mon_rel, key);
+            }
+            /*
+             * Delete all relationships from entity_name
+             * */
+            for (unsigned long int j = 0; j < mon_ent_list->next_free; j++) {
+                char *ent = mon_ent_list->array[j];
+                strcpy(key, cur_rel);
+                strcat(key, "-");
+                strcat(key, ent);
+                dest_table = ht_get(mon_rel, key);
                 if (dest_table != NULL) {
-                    ht_destroy(dest_table);
-                    ht_delete(rel_table, entity_name);
-                }
-                /*
-                 * Delete all relationships from entity_name
-                 * */
-                for (unsigned long int j = 0; j < mon_ent_list->next_free; j++){
-                    char *ent = mon_ent_list->array[j];
-                    dest_table = ht_get(rel_table, ent);
-                    if (dest_table != NULL) {
-                        ht_delete(dest_table, entity_name);
-                        if (dest_table->count == 0) {
-                            ht_delete(rel_table, ent);
-                            ht_destroy(dest_table);
-                        }
+                    ht_delete(dest_table, entity_name);
+                    if (dest_table->count == 0) {
+                        ht_delete(mon_rel, key);
+                        ht_destroy(dest_table);
                     }
-                }
-                /*
-                 * If the relationship table is now empty,
-                 * mark it for removal from monitored relationships
-                 * */
-                if (rel_table->count == 0) {
-                    list_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
                 }
             }
         }
-        /*
-         * Remove all relationships marked for removal
-         * */
-        struct list_node *rel = rels_to_remove->head;
-        while (rel != NULL) {
-            rel_table = ht_get(mon_rel, rel->elem);
-            ht_destroy(rel_table);
-            ht_delete(mon_rel, rel->elem);
-            din_arr_remove(mon_rel_list, rel->elem, strcmp);
-            rel = rel->next;
-        }
-        list_destroy(rels_to_remove);
     }
 }
 
 void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
              struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
-    struct hash_table *rel_table = ht_get(mon_rel, rel_name);
+    char key[MAX_LINE_LENGTH];
+    strcpy(key, rel_name);
+    strcat(key, "-");
+    strcat(key, dest_ent);
+    struct hash_table *dest_table = ht_get(mon_rel, key);
     /*
-     * Check if rel_name is in mon_rel
+     * Check if there's any "arrow"
+     * going to dest_ent
      * */
-    if (rel_table != NULL) {
-        struct hash_table *dest_table = ht_get(rel_table, dest_ent);
+    if (dest_table != NULL) {
         /*
-         * Check if there's any "arrow"
-         * going to dest_ent
+         * If there's an "arrow" from origin_ent
+         * to dest_ent, delete it
          * */
-        if (dest_table != NULL) {
-            /*
-             * If there's an "arrow" from origin_ent
-             * to dest_ent, delete it
-             * */
 
-            ht_delete(dest_table, origin_ent);
-            /*
-             * If there's no other "arrow" going to dest_ent,
-             * remove it from rel_table
-             * */
-            if (dest_table->count == 0) {
-                ht_destroy(dest_table);
-                ht_delete(rel_table, dest_ent);
-                /*
-                 * If rel_table is now empty (there was just that one "arrow"),
-                 * delete it and remove rel_name from mon_rel
-                 * */
-                if (rel_table->count == 0) {
-                    ht_destroy(rel_table);
-                    ht_delete(mon_rel, rel_name);
-                    din_arr_remove(mon_rel_list, rel_name, strcmp);
-                }
-            }
+        ht_delete(dest_table, origin_ent);
+        /*
+         * If there's no other "arrow" going to dest_ent,
+         * remove it from rel_table
+         * */
+        if (dest_table->count == 0) {
+            ht_destroy(dest_table);
+            ht_delete(mon_rel, key);
         }
     }
 }
@@ -659,7 +627,8 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
          * Sort mon_rel_list in ascending alphabetical order
          * */
         din_arr_sort(mon_rel_list, compare_strings);
-
+        char key[MAX_LINE_LENGTH];
+        short int printed = 0;
         /*
          * Iterate on the now ordered array of all
          * monitored relationships
@@ -673,10 +642,12 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
             char *best_ents_arr[MAX_ENTITIES_NUMBER];
             int best_ents_arr_len = 0;
             unsigned long int count = 0;
-            struct hash_table *rel_table = ht_get(mon_rel, cur_rel);
-            for (unsigned long int i = 0; i < mon_ent_list->next_free; i++){
+            for (unsigned long int i = 0; i < mon_ent_list->next_free; i++) {
                 char *ent = mon_ent_list->array[i];
-                struct hash_table *dest_table = ht_get(rel_table, ent);
+                strcpy(key, cur_rel);
+                strcat(key, "-");
+                strcat(key, ent);
+                struct hash_table *dest_table = ht_get(mon_rel, key);
                 if (dest_table != NULL && dest_table->count >= count) {
                     if (dest_table->count > count) {
                         best_ents_arr_len = 0;
@@ -691,18 +662,25 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
             /*
              * Sort best_ents_arr in ascending alphabetical order
              */
-            qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
+            if (count > 0) {
+                printed = 1;
+                qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
 
-            printf("\"%s\" ", cur_rel);
-            for (int i = 0; i < best_ents_arr_len; i++) {
-                printf("\"%s\" ", best_ents_arr[i]);
-            }
-            printf("%ld;", count);
-            if (j + 1 < mon_rel_list->next_free) {
-                printf(" ");
+                printf("\"%s\" ", cur_rel);
+                for (int i = 0; i < best_ents_arr_len; i++) {
+                    printf("\"%s\" ", best_ents_arr[i]);
+                }
+                printf("%ld;", count);
+                if (j + 1 < mon_rel_list->next_free) {
+                    printf(" ");
+                }
             }
         }
-        printf("\n");
+        if (printed) {
+            printf("\n");
+        } else {
+            printf("none\n");
+        }
     }
 
 }
@@ -740,15 +718,15 @@ int main(void) {
         while (token != NULL) {
             unsigned long int len = strlen(token);
 
-            if (token[len - 1] == '\n'){
+            if (token[len - 1] == '\n') {
                 token[len - 1] = '\0';
                 len--;
             }
-            if (token[0] == '"' && token[len - 1] == '"'){
+            if (token[0] == '"' && token[len - 1] == '"') {
                 token++;
                 token[len - 2] = '\0';
                 len -= 2;
-            } else if (cur_par > 0){
+            } else if (cur_par > 0) {
                 valid = 0;
                 break;
             }
@@ -806,8 +784,8 @@ int main(void) {
                 }
             } else if (strcmp(action, action_report) == 0) {
                 if ((param1 == NULL || param1[0] == '\0') &&
-                        (param2 == NULL || param2[0] == '\0')
-                        && (param3 == NULL || param3[0] == '\0')) {
+                    (param2 == NULL || param2[0] == '\0')
+                    && (param3 == NULL || param3[0] == '\0')) {
                     report(mon_ent_list, mon_rel, mon_rel_list);
                 }
             } else if (strcmp(action, "end") == 0) {

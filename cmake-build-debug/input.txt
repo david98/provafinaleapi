@@ -1,1 +1,8 @@
-addent "a";
+addent "a"
+addent "b"
+addent "c"
+addrel "a" "b" "rel1"
+addrel "a" "b" "rel1"
+addrel "a" "b" "rel1"
+delent "a"
+report
