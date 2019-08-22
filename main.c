@@ -69,6 +69,13 @@ struct ht_item {
     void *value;
 };
 
+int compare_ht_items(const void *a, const void *b) {
+    const struct ht_item *pa = *(const struct ht_item **) a;
+    const struct ht_item *pb = *(const struct ht_item **) b;
+
+    return strcmp(pa->key, pb->key);
+}
+
 static const struct ht_item HT_DELETED_ITEM = {NULL, 0, NULL};
 
 struct hash_table {
@@ -471,22 +478,6 @@ size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
     return new_size;
 }
 
-void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
-    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
-        size_t old_size = arr->size;
-        size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
-        if (new_size <= old_size) {
-            exit(666);
-        }
-    }
-    if (elem != NULL) {
-        arr->array[arr->next_free] = malloc(elem_size);
-        memcpy(arr->array[arr->next_free], elem, elem_size);
-        arr->next_free++;
-        arr->non_null_count++;
-    }
-}
-
 void din_arr_insert(struct din_arr *arr, unsigned long int index, void *elem, size_t elem_size) {
     if (index >= arr->size) {
         size_t old_size = arr->size;
@@ -501,13 +492,17 @@ void din_arr_insert(struct din_arr *arr, unsigned long int index, void *elem, si
         } else {
             arr->non_null_count++;
         }
-        arr->array[index] = malloc(elem_size);
-        memcpy(arr->array[index], elem, elem_size);
     } else {
         arr->non_null_count--;
         free(arr->array[index]);
-        arr->array[index] = elem;
     }
+    arr->array[index] = malloc(elem_size);
+    memcpy(arr->array[index], elem, elem_size);
+    arr->next_free = index >= arr->next_free ? index + 1 : arr->next_free;
+}
+
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
+    din_arr_insert(arr, arr->next_free, elem, elem_size);
 }
 
 void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
@@ -534,16 +529,16 @@ void din_arr_zero(struct din_arr *arr) {
     arr->next_free = 0;
 }
 
-struct din_arr *din_arr_copy(struct din_arr *arr){
+struct din_arr *din_arr_copy(struct din_arr *arr) {
     struct din_arr *new = malloc(sizeof(struct din_arr *));
-    if (new == NULL){
+    if (new == NULL) {
         exit(666);
     }
-    new->array = malloc(arr->size * sizeof(void*));
-    if (new->array == NULL){
+    new->array = malloc(arr->size * sizeof(void *));
+    if (new->array == NULL) {
         exit(666);
     }
-    memcpy(new->array, arr->array, arr->size * sizeof(void*));
+    memcpy(new->array, arr->array, arr->size * sizeof(void *));
     new->size = arr->size;
     new->next_free = arr->next_free;
     new->non_null_count = arr->non_null_count;
@@ -566,6 +561,14 @@ void din_arr_soft_destroy(struct din_arr *arr) {
     free(arr);
 }
 
+void din_arr_print(struct din_arr *arr) {
+    printf("\n[");
+    for (size_t i = 0; i < arr->next_free; i++) {
+        printf("%s, ", arr->array[i]);
+    }
+    printf("]\n");
+}
+
 struct int_arr {
     unsigned long int *array;
     unsigned long int next_free;
@@ -573,27 +576,32 @@ struct int_arr {
     size_t size;
 };
 
-struct int_arr* int_arr_new(size_t initial_size){
+struct int_arr *int_arr_new(size_t initial_size) {
     struct int_arr *arr = malloc(sizeof(struct int_arr));
-    if (arr == NULL){
+    if (arr == NULL) {
         exit(666);
     }
     arr->array = calloc(initial_size, sizeof(unsigned long int));
-    if (arr->array == NULL){
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->next_free = 0;
     arr->non_zero_count = 0;
+    arr->size = initial_size;
     return arr;
 }
 
-struct int_arr* int_arr_copy(struct int_arr *arr){
+struct int_arr *int_arr_copy(struct int_arr *arr) {
+    if (arr->size == 0) {
+        printf("ALLARMEEE");
+        exit(666);
+    }
     struct int_arr *new = malloc(sizeof(struct int_arr));
-    if (new == NULL){
+    if (new == NULL) {
         exit(666);
     }
     new->array = malloc(arr->size * sizeof(unsigned long int));
-    if (new->array == NULL){
+    if (new->array == NULL) {
         exit(666);
     }
     memcpy(new->array, arr->array, arr->size * sizeof(unsigned long int));
@@ -602,7 +610,7 @@ struct int_arr* int_arr_copy(struct int_arr *arr){
     return new;
 }
 
-size_t int_arr_resize(struct int_arr *arr, size_t new_size){
+size_t int_arr_resize(struct int_arr *arr, size_t new_size) {
     if (new_size <= arr->size) {
         return arr->size;
     }
@@ -614,52 +622,52 @@ size_t int_arr_resize(struct int_arr *arr, size_t new_size){
     return new_size;
 }
 
-void int_arr_insert(struct int_arr *arr, size_t index, unsigned long int value){
-    if (index >= arr->size){
+void int_arr_insert(struct int_arr *arr, size_t index, unsigned long int value) {
+    if (index >= arr->size) {
         int_arr_resize(arr, index * 2);
     }
-    if (value != 0 && arr->array[index] == 0){
+    if (value != 0 && arr->array[index] == 0) {
         ++arr->non_zero_count;
-    } else if (value == 0 && arr->array[index] != 0){
+    } else if (value == 0 && arr->array[index] != 0) {
         --arr->non_zero_count;
     }
     arr->next_free = index + 1;
     arr->array[index] = value;
 }
 
-void int_arr_append(struct int_arr *arr, unsigned long int value){
+void int_arr_append(struct int_arr *arr, unsigned long int value) {
     int_arr_insert(arr, arr->next_free, value);
 }
 
-void int_arr_remove(struct int_arr *arr, unsigned long int value){
-    if (value == 0){
+void int_arr_remove(struct int_arr *arr, unsigned long int value) {
+    if (value == 0) {
         return;
     }
-    for (size_t i = 0; i < arr->next_free; i++){
-        if (arr->array[i] == value){
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (arr->array[i] == value) {
             arr->array[i] = 0;
         }
     }
 }
 
-void int_arr_print(struct int_arr *arr){
+void int_arr_print(struct int_arr *arr) {
     printf("\n[");
-    for (size_t i = 0; i < arr->next_free; i++){
+    for (size_t i = 0; i < arr->next_free; i++) {
         printf("%llu, ", arr->array[i]);
     }
     printf("]\n");
 }
 
-void int_arr_destroy(struct int_arr *arr){
+void int_arr_destroy(struct int_arr *arr) {
     free(arr->array);
     free(arr);
 }
 
-int cmp_ints(const void *a, const void *b){
-    return *(unsigned long int *)a - *(unsigned long int *)b;
+int cmp_ints(const void *a, const void *b) {
+    return *(unsigned long int *) a - *(unsigned long int *) b;
 }
 
-void int_arr_sort(struct int_arr *arr){
+void int_arr_sort(struct int_arr *arr) {
     qsort(arr->array, arr->next_free, sizeof(unsigned long int), cmp_ints);
 }
 
@@ -685,13 +693,31 @@ void add_ent(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_inverse
     }
 }
 
-void add_rel(struct hash_table *mon_ent_ids, struct hash_table *mon_rel,
+void add_rel(struct hash_table *mon_ent_ids, struct hash_table *mon_rel, struct hash_table *rel_present_check,
              char *origin_ent, char *dest_ent, char *rel_name) {
-    unsigned long int origin_id = ht_get(mon_ent_ids, origin_ent);
-    unsigned long int dest_id = ht_get(mon_ent_ids, dest_ent);
-
-    if (origin_id == NULL || dest_id == NULL) {
+    unsigned long int origin_id = (unsigned long int) ht_get(mon_ent_ids, origin_ent);
+    unsigned long int dest_id = (unsigned long int) ht_get(mon_ent_ids, dest_ent);
+    char *key;
+    if (origin_id == 0 || dest_id == 0) {
         return;
+    }
+    size_t len_orig = strlen(origin_ent);
+    size_t len_dest = strlen(dest_ent);
+
+    key = malloc(sizeof(char) * (len_orig + len_dest + 2));
+    strcpy(key, origin_ent);
+    key[len_orig] = '-';
+    key[len_orig + 1] = '\0';
+    strcat(key, dest_ent);
+
+    struct hash_table *rel_table = ht_get(rel_present_check, rel_name);
+    if (rel_table != NULL) {
+        if (ht_get(rel_table, key) != NULL) {
+            return;
+        }
+    } else {
+        rel_table = ht_new(INITIAL_HASH_TABLE_SIZE);
+        ht_insert(rel_present_check, rel_name, rel_table);
     }
 
     struct holder *rel_hold = ht_get(mon_rel, rel_name);
@@ -701,11 +727,13 @@ void add_rel(struct hash_table *mon_ent_ids, struct hash_table *mon_rel,
     }
     int_arr_append(rel_hold->in, dest_id);
     int_arr_append(rel_hold->out, origin_id);
+    ht_insert(rel_table, key, &dummy);
 }
 
-void del_ent(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse, struct hash_table *mon_rel, char *entity_name) {
-    unsigned long int ent_id = ht_get(mon_ent_ids, entity_name);
-    if (ent_id == NULL) {
+void del_ent(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse, struct hash_table *mon_rel,
+             char *entity_name) {
+    unsigned long int ent_id = (unsigned long int) ht_get(mon_ent_ids, entity_name);
+    if (ent_id == 0) {
         return;
     }
     size_t cnt = 0;
@@ -722,7 +750,10 @@ void del_ent(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse
             }
         }
         if (rel_hold->in->non_zero_count == 0) {
-            ht_delete(mon_rel, mon_rel->array[i]->key);
+            free(mon_rel->array[i]->key);
+            free(mon_rel->array[i]->value);
+            free(mon_rel->array[i]);
+            mon_rel->array[i] = &HT_DELETED_ITEM;
         } else {
             for (size_t j = 0; j < rel_hold->out->next_free; j++) {
                 if (0 != rel_hold->out->array[j] && rel_hold->out->array[j] == ent_id) {
@@ -776,19 +807,23 @@ void report(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse,
     int count = 0;
     unsigned long int current = 0;
     int max = 0;
-
     if (mon_rel->count == 0) {
         printf("none\n");
         return;
     }
 
-    size_t cnt = 0;
-    for (size_t i = 0; i < mon_rel->size && cnt < mon_rel->count; i++) {
-        if (mon_rel->array[i] == NULL || mon_rel->array[i] == &HT_DELETED_ITEM) {
+    struct din_arr *mon_rel_list = din_arr_new(mon_rel->count);
+    for (size_t i = 0, cnt = 0; i < mon_rel->size && cnt < mon_rel->count; i++){
+        if (mon_rel->array[i] == NULL || mon_rel->array[i] == &HT_DELETED_ITEM){
             continue;
         }
         cnt++;
+        din_arr_append(mon_rel_list, mon_rel->array[i], sizeof(struct ht_item));
+    }
+    din_arr_sort(mon_rel_list, compare_ht_items);
 
+    for (size_t i = 0; i < mon_rel_list->next_free; i++) {
+        struct ht_item *item = mon_rel_list->array[i];
         count = 0;
         current = 0;
         max = 0;
@@ -797,7 +832,7 @@ void report(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse,
         }
         maxes = int_arr_new(INITIAL_DA_SIZE);
         //int_arr_print(((struct holder*)mon_rel->array[i]->value)->in);
-        struct int_arr *temp_arr = int_arr_copy(((struct holder*)mon_rel->array[i]->value)->in);
+        struct int_arr *temp_arr = int_arr_copy(((struct holder *) item->value)->in);
         //int_arr_print(temp_arr);
         int_arr_sort(temp_arr);
         //int_arr_print(temp_arr);
@@ -830,7 +865,7 @@ void report(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse,
                 current = temp_arr->array[j];
             }
 
-            if (temp_arr->next_free == j+1) {
+            if (temp_arr->next_free == j + 1) {
                 if (count == max) {
                     int_arr_append(maxes, current);
                 } else if (count > max) {
@@ -844,12 +879,28 @@ void report(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse,
             }
         }
 
-        printf("\"%s\"", mon_rel->array[i]->key);
+        printf("\"%s\"", item->key);
+        struct din_arr *ents = din_arr_new(maxes->next_free);
         for (size_t j = 0; j < maxes->next_free; j++) {
-            printf(" \"%s\"", mon_ent_ids_reverse->array[maxes->array[j]]);
+            char *name = mon_ent_ids_reverse->array[maxes->array[j]];
+            din_arr_append(ents, name, sizeof(char) * (strlen(name) + 1));
         }
-        printf(" %d;\n", max);
+        din_arr_sort(ents, compare_strings);
+        for (size_t j = 0; j < ents->next_free; j++) {
+            printf(" \"%s\"", ents->array[j]);
+        }
+        din_arr_destroy(ents);
+        printf(" %d;", max);
+        if (i + 1 < mon_rel_list->next_free){
+            printf(" ");
+        } else {
+            printf("\n");
+        }
+        int_arr_destroy(temp_arr);
+        int_arr_destroy(maxes);
+
     }
+    din_arr_destroy(mon_rel_list);
 
 }
 
@@ -860,13 +911,14 @@ int main(void) {
     freopen("output.txt", "w", stdout);
     char line[MAX_LINE_LENGTH];
 
-    struct hash_table *mon_ent_ids, *mon_rel;
+    struct hash_table *mon_ent_ids, *mon_rel, *rel_present_check;
     struct din_arr *mon_ent_ids_inverse;
 
     mon_ent_ids = ht_new(INITIAL_MON_ENT_SIZE);
     mon_ent_ids_inverse = din_arr_new(INITIAL_MON_ENT_SIZE);
 
     mon_rel = ht_new(INITIAL_MON_REL_SIZE);
+    rel_present_check = ht_new(INITIAL_MON_REL_SIZE);
 
     const char *action_add_ent = ACTION_ADD_ENT;
     const char *action_del_ent = ACTION_DEL_ENT;
@@ -941,7 +993,7 @@ int main(void) {
                 if ((param1 != NULL && param1[0] != '\0') &&
                     (param2 != NULL && param2[0] != '\0')
                     && (param3 != NULL && param3[0] != '\0')) {
-                    add_rel(mon_ent_ids, mon_rel, param1, param2, param3);
+                    add_rel(mon_ent_ids, mon_rel, rel_present_check, param1, param2, param3);
                 }
             } else if (strcmp(action, action_del_rel) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
