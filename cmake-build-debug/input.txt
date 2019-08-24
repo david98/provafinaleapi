@@ -1,1 +1,16 @@
-addent "a"
+addent "Franchino"
+addent "Mario"
+addrel "Franchino" "Mario" "amico_di"
+addrel "Franchino" "Mario" "amico_di"
+addrel "Franchino" "Mario" "amico_di"
+report
+addent "Pippo"
+report
+addrel "Pippo" "Franchino" "amichetto_di"
+report
+addrel "Pippo" "Pippo" "amichetto_di"
+report
+addrel "Franchino" "Franchino" "amichetto_di"
+report
+
+end

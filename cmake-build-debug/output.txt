@@ -1,1 +1,5 @@
-"rel1" "a" 1;
+"amico_di" "Mario" 1;
+"amico_di" "Mario" 1;
+"amichetto_di" "Franchino" 1; "amico_di" "Mario" 1;
+"amichetto_di" "Franchino" "Pippo" 1; "amico_di" "Mario" 1;
+"amichetto_di" "Franchino" 2; "amico_di" "Mario" 1;

@@ -17,7 +17,6 @@
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/input.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/input.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/output.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/output.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/provafinaleapi" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/main.c" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -137,7 +136,9 @@
       <workItem from="1565299367022" duration="888000" />
       <workItem from="1566558513367" duration="1469000" />
       <workItem from="1566626707393" duration="6519000" />
-      <workItem from="1566652970081" duration="5570000" />
+      <workItem from="1566652970081" duration="5887000" />
+      <workItem from="1566664313854" duration="712000" />
+      <workItem from="1566673512952" duration="124000" />
     </task>
     <servers />
   </component>
