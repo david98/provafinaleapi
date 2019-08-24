@@ -1,0 +1,3 @@
+- entità rimangono senza mittenti
+- nessuna relazione viene svuotata completamente
+-

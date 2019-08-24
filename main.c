@@ -697,7 +697,6 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
 
                 }
             }
-
             /*
              * Sort best_ents_arr in ascending alphabetical order
              */
@@ -776,7 +775,7 @@ int main(void) {
             param1 = params[1];
             param2 = params[2];
             param3 = params[3];
-            printf("command: %s %s %s %s\n", action, param1, param2, param3);
+            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
 
             if (strcmp(action, action_add_ent) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
