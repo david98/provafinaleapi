@@ -720,8 +720,8 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
 int main(void) {
     /*struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);*/
-    freopen("input.txt", "r", stdin);
-    freopen("output.txt", "w", stdout);
+    //printf("%p\n", freopen("input.txt", "r", stdin));
+    //freopen("output.txt", "w", stdout);
 
     struct hash_table *mon_ent, *mon_rel;
     struct din_arr *mon_ent_list, *mon_rel_list;
@@ -752,7 +752,7 @@ int main(void) {
         int n_par = 0;
         size_t line_len = strlen(line);
         size_t filt_len = 0;
-        for (size_t i = 0, j = 0; i < line_len; i++){
+        for (size_t i = 0; i < line_len; i++){
             if (line[i] != '\"' && line[i] != '\n'){
                 filtered_line[filt_len] = line[i];
                 filt_len++;
@@ -760,25 +760,23 @@ int main(void) {
         }
         filtered_line[filt_len] = '\0';
         char *token = strtok(filtered_line, " ");
-        short int valid = 1;
+        int valid = 1;
         while (token != NULL) {
             if (n_par >= MAX_PARAMS){
                 valid = 0;
                 break;
             }
-            size_t len = strlen(token);
             params[n_par] = token;
             token = strtok(NULL, " ");
             n_par++;
         }
-
         if (valid) {
 
             action = params[0];
             param1 = params[1];
             param2 = params[2];
             param3 = params[3];
-            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
+            printf("command: %s %s %s %s\n", action, param1, param2, param3);
 
             if (strcmp(action, action_add_ent) == 0) {
                 if ((param1 != NULL && param1[0] != '\0') &&
@@ -818,10 +816,6 @@ int main(void) {
         memset(line, 0, MAX_LINE_LENGTH * sizeof(char));
         memset(filtered_line, 0, MAX_LINE_LENGTH * sizeof(char));
         memset(params, 0, MAX_PARAMS * sizeof(char *));
-        action = NULL;
-        param1 = NULL;
-        param2 = NULL;
-        param3 = NULL;
     }
 
     // free all memory (or not, lol)

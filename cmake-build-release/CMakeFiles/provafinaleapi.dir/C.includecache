@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/dvolta/CLionProjects/provafinaleapi/main.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+time.h
+-
+
