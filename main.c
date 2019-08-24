@@ -16,6 +16,9 @@
 #define ACTION_DEL_REL "delrel"
 #define ACTION_REPORT "report"
 
+#define MAX_PARAM_LENGTH 40
+#define MAX_PARAMS 4
+
 #define DOUBLE_HASHING_FACTOR 1
 
 #define MAX_ENTITIES_NUMBER 100000
@@ -719,9 +722,10 @@ int main(void) {
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);*/
     freopen("input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
+
     struct hash_table *mon_ent, *mon_rel;
     struct din_arr *mon_ent_list, *mon_rel_list;
-    char line[MAX_LINE_LENGTH];
+    char line[MAX_LINE_LENGTH] = "", filtered_line[MAX_LINE_LENGTH] = "";
 
     mon_ent = ht_new(INITIAL_MON_ENT_SIZE);
     mon_rel = ht_new(INITIAL_MON_REL_SIZE);
@@ -739,52 +743,41 @@ int main(void) {
     char *action = NULL;
     char *param1 = NULL, *param2 = NULL, *param3 = NULL;
 
-    while (fgets(line, MAX_LINE_LENGTH, stdin)) {
-        int cur_par = 0;
+    char **params = calloc(MAX_PARAMS, sizeof(char *));
+    if (params == NULL){
+        exit(666);
+    }
 
-        char *token = strtok(line, " ");
+    while (fgets(line, MAX_LINE_LENGTH, stdin)) {
+        int n_par = 0;
+        size_t line_len = strlen(line);
+        size_t filt_len = 0;
+        for (size_t i = 0, j = 0; i < line_len; i++){
+            if (line[i] != '\"' && line[i] != '\n'){
+                filtered_line[filt_len] = line[i];
+                filt_len++;
+            }
+        }
+        filtered_line[filt_len] = '\0';
+        char *token = strtok(filtered_line, " ");
         short int valid = 1;
         while (token != NULL) {
-            unsigned long int len = strlen(token);
-
-            if (token[len - 1] == '\n'){
-                token[len - 1] = '\0';
-                len--;
-            }
-            if (token[0] == '"' && token[len - 1] == '"'){
-                token++;
-                token[len - 2] = '\0';
-                len -= 2;
-            } else if (cur_par > 0){
+            if (n_par >= MAX_PARAMS){
                 valid = 0;
                 break;
             }
-            switch (cur_par) {
-                case 0: {
-                    action = token;
-                    break;
-                }
-                case 1: {
-                    param1 = token;
-                    break;
-                }
-                case 2: {
-                    param2 = token;
-                    break;
-                }
-                case 3: {
-                    param3 = token;
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
+            size_t len = strlen(token);
+            params[n_par] = token;
             token = strtok(NULL, " ");
-            cur_par++;
+            n_par++;
         }
 
-        if (cur_par >= 1 && cur_par <= 4 && action != NULL && valid) {
+        if (valid) {
+
+            action = params[0];
+            param1 = params[1];
+            param2 = params[2];
+            param3 = params[3];
             //printf("command: %s %s %s %s\n", action, param1, param2, param3);
 
             if (strcmp(action, action_add_ent) == 0) {
@@ -822,7 +815,9 @@ int main(void) {
             }
         }
 
-        memset(line, 0, MAX_LINE_LENGTH);
+        memset(line, 0, MAX_LINE_LENGTH * sizeof(char));
+        memset(filtered_line, 0, MAX_LINE_LENGTH * sizeof(char));
+        memset(params, 0, MAX_PARAMS * sizeof(char *));
         action = NULL;
         param1 = NULL;
         param2 = NULL;
