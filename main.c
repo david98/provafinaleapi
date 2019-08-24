@@ -720,8 +720,8 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
 int main(void) {
     /*struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);*/
-    //printf("%p\n", freopen("input.txt", "r", stdin));
-    //freopen("output.txt", "w", stdout);
+    freopen("input.txt", "r", stdin);
+    freopen("output.txt", "w", stdout);
 
     struct hash_table *mon_ent, *mon_rel;
     struct din_arr *mon_ent_list, *mon_rel_list;
@@ -753,7 +753,7 @@ int main(void) {
         size_t line_len = strlen(line);
         size_t filt_len = 0;
         for (size_t i = 0; i < line_len; i++){
-            if (line[i] != '\"' && line[i] != '\n'){
+            if (line[i] != '\"' && line[i] != '\n' && line[i] != '\r'){
                 filtered_line[filt_len] = line[i];
                 filt_len++;
             }
@@ -825,9 +825,4 @@ int main(void) {
     printf("%f ms", (double)delta_us/1000);*/
 
     exit(0);
-}
-
-int xmain(){
-    char lez[10] = "ciao";
-    printf("%llu", calcul_hash(lez));
 }
