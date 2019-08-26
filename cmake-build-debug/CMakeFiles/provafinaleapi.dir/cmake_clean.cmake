@@ -1,6 +1,5 @@
 file(REMOVE_RECURSE
   "CMakeFiles/provafinaleapi.dir/main.c.o"
-  "CMakeFiles/provafinaleapi.dir/xxhash.c.o"
   "provafinaleapi.pdb"
   "provafinaleapi"
 )

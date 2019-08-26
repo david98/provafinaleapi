@@ -61,8 +61,7 @@ sdbm(str)
     return hash;
 }
 
-static unsigned long long inline calcul_hash(const void* buffer)
-{
+static unsigned long long inline calcul_hash(const void *buffer) {
     return djb2(buffer);
 }
 
@@ -101,7 +100,7 @@ struct hash_table *ht_new(unsigned long int initial_size) {
 unsigned long long int ht_get_index(struct hash_table *ht, char *key, int double_hashing_round) {
     unsigned long long int a = calcul_hash(key);
     unsigned long int b = 0;
-    if (double_hashing_round > 0){
+    if (double_hashing_round > 0) {
         b = sdbm(key);
     }
     unsigned long long int value = (a + double_hashing_round * (b + 1));
@@ -446,13 +445,13 @@ struct din_arr {
     size_t size;
 };
 
-struct din_arr* din_arr_new(size_t initial_size){
+struct din_arr *din_arr_new(size_t initial_size) {
     struct din_arr *arr = malloc(sizeof(struct din_arr));
-    if (arr == NULL){
+    if (arr == NULL) {
         exit(666);
     }
     arr->array = calloc(initial_size, sizeof(void *));
-    if (arr->array == NULL){
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = initial_size;
@@ -460,23 +459,23 @@ struct din_arr* din_arr_new(size_t initial_size){
     return arr;
 }
 
-size_t din_arr_resize(struct din_arr *arr, size_t new_size){
-    if (new_size <= arr->size){
+size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
+    if (new_size <= arr->size) {
         return arr->size;
     }
-    arr->array = realloc(arr->array, sizeof(void*) * new_size);
-    if (arr->array == NULL){
+    arr->array = realloc(arr->array, sizeof(void *) * new_size);
+    if (arr->array == NULL) {
         exit(666);
     }
     arr->size = new_size;
     return new_size;
 }
 
-void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
-    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100){
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
+    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
         size_t old_size = arr->size;
         size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
-        if (new_size <= old_size){
+        if (new_size <= old_size) {
             exit(666);
         }
     }
@@ -486,21 +485,21 @@ void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size){
 }
 
 void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
-    for(size_t i = 0; i < arr->next_free; i++){
-        if( cmp(arr->array[i], elem) == 0){
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (cmp(arr->array[i], elem) == 0) {
             free(arr->array[i]);
             arr->array[i] = arr->array[--arr->next_free];
         }
     }
 }
 
-void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)){
+void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)) {
     qsort(arr->array, arr->next_free, sizeof(void *), cmp);
 }
 
-void din_arr_destroy(struct din_arr *arr){
+void din_arr_destroy(struct din_arr *arr) {
     size_t i;
-    for (i = 0; i < arr->size; i++){
+    for (i = 0; i < arr->size; i++) {
         free(arr->array[i]);
     }
     free(arr);
@@ -573,7 +572,7 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
         /*
         * Delete entity_name from all relationships
         * */
-        for (unsigned long int i = 0; i < mon_rel_list->next_free; i++){
+        for (unsigned long int i = 0; i < mon_rel_list->next_free; i++) {
             char *cur_rel = mon_rel_list->array[i];
             rel_table = ht_get(mon_rel, cur_rel);
             if (rel_table != NULL) {
@@ -588,7 +587,7 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
                 /*
                  * Delete all relationships from entity_name
                  * */
-                for (unsigned long int j = 0; j < mon_ent_list->next_free; j++){
+                for (unsigned long int j = 0; j < mon_ent_list->next_free; j++) {
                     char *ent = mon_ent_list->array[j];
                     dest_table = ht_get(rel_table, ent);
                     if (dest_table != NULL) {
@@ -611,7 +610,7 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
         /*
          * Remove all relationships marked for removal
          * */
-        for (size_t idx = 0; idx < rels_to_remove->next_free; idx++){
+        for (size_t idx = 0; idx < rels_to_remove->next_free; idx++) {
             rel_table = ht_get(mon_rel, rels_to_remove->array[idx]);
             ht_destroy(rel_table);
             ht_delete(mon_rel, rels_to_remove->array[idx]);
@@ -684,7 +683,7 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
             int best_ents_arr_len = 0;
             unsigned long int count = 0;
             struct hash_table *rel_table = ht_get(mon_rel, cur_rel);
-            for (unsigned long int i = 0; i < mon_ent_list->next_free; i++){
+            for (unsigned long int i = 0; i < mon_ent_list->next_free; i++) {
                 char *ent = mon_ent_list->array[i];
                 struct hash_table *dest_table = ht_get(rel_table, ent);
                 if (dest_table != NULL && dest_table->count >= count) {
@@ -722,6 +721,8 @@ int main(void) {
     freopen("input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
 
+    size_t addent_cnt = 0, delent_cnt = 0, addrel_cnt = 0, delrel_cnt = 0, report_cnt = 0;
+
     struct hash_table *mon_ent, *mon_rel;
     struct din_arr *mon_ent_list, *mon_rel_list;
     char line[MAX_LINE_LENGTH] = "", filtered_line[MAX_LINE_LENGTH] = "";
@@ -743,7 +744,7 @@ int main(void) {
     char *param1 = NULL, *param2 = NULL, *param3 = NULL;
 
     char **params = calloc(MAX_PARAMS, sizeof(char *));
-    if (params == NULL){
+    if (params == NULL) {
         exit(666);
     }
 
@@ -751,8 +752,8 @@ int main(void) {
         int n_par = 0;
         size_t line_len = strlen(line);
         size_t filt_len = 0;
-        for (size_t i = 0; i < line_len; i++){
-            if (line[i] != '\"' && line[i] != '\n' && line[i] != '\r'){
+        for (size_t i = 0; i < line_len; i++) {
+            if (line[i] != '\"' && line[i] != '\n' && line[i] != '\r') {
                 filtered_line[filt_len] = line[i];
                 filt_len++;
             }
@@ -761,7 +762,7 @@ int main(void) {
         char *token = strtok(filtered_line, " ");
         int valid = 1;
         while (token != NULL) {
-            if (n_par >= MAX_PARAMS){
+            if (n_par >= MAX_PARAMS) {
                 valid = 0;
                 break;
             }
@@ -778,34 +779,29 @@ int main(void) {
             //printf("command: %s %s %s %s\n", action, param1, param2, param3);
 
             if (strcmp(action, action_add_ent) == 0) {
-                if ((param1 != NULL && param1[0] != '\0') &&
-                    (param2 == NULL || param2[0] == '\0')
-                    && (param3 == NULL || param3[0] == '\0')) {
+                if (param1 != NULL && param2 == NULL && param3 == NULL) {
                     add_ent(param1, mon_ent, mon_ent_list);
+                    addent_cnt++;
                 }
             } else if (strcmp(action, action_del_ent) == 0) {
-                if ((param1 != NULL && param1[0] != '\0') &&
-                    (param2 == NULL || param2[0] == '\0')
-                    && (param3 == NULL || param3[0] == '\0')) {
+                if (param1 != NULL && param2 == NULL && param3 == NULL) {
                     del_ent(param1, mon_ent, mon_ent_list, mon_rel, mon_rel_list);
+                    delent_cnt++;
                 }
             } else if (strcmp(action, action_add_rel) == 0) {
-                if ((param1 != NULL && param1[0] != '\0') &&
-                    (param2 != NULL && param2[0] != '\0')
-                    && (param3 != NULL && param3[0] != '\0')) {
+                if (param1 != NULL && param2 != NULL && param3 != NULL) {
                     add_rel(param1, param2, param3, mon_ent, mon_rel, mon_rel_list);
+                    addrel_cnt++;
                 }
             } else if (strcmp(action, action_del_rel) == 0) {
-                if ((param1 != NULL && param1[0] != '\0') &&
-                    (param2 != NULL && param2[0] != '\0')
-                    && (param3 != NULL && param3[0] != '\0')) {
+                if (param1 != NULL && param2 != NULL && param3 != NULL) {
                     del_rel(param1, param2, param3, mon_rel, mon_rel_list);
+                    delrel_cnt++;
                 }
             } else if (strcmp(action, action_report) == 0) {
-                if ((param1 == NULL || param1[0] == '\0') &&
-                        (param2 == NULL || param2[0] == '\0')
-                        && (param3 == NULL || param3[0] == '\0')) {
+                if (param1 == NULL && param2 == NULL && param3 == NULL) {
                     report(mon_ent_list, mon_rel, mon_rel_list);
+                    report_cnt++;
                 }
             } else if (strcmp(action, "end") == 0) {
                 goto END;
@@ -823,5 +819,114 @@ int main(void) {
     uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
     printf("%f ms", (double)delta_us/1000);*/
 
+    exit(0);
+}
+
+int xmain() {
+    struct hash_table *ht = ht_new(256);
+    char key[50] = "";
+    for (size_t i = 0; i < 2097152; i++) {
+        sprintf(key, "key%lu", i);
+        ht_insert(ht, key, key);
+    }
+    for (size_t i = 0; i < 2097152; i++) {
+        unsigned long int k = rand() % 2097152;
+        sprintf(key, "key%lu", k);
+        if (strcmp(ht_get(ht, key), key) != 0) {
+            exit(666);
+        }
+    }
+
+    /*struct din_arr *arr = din_arr_new(100);
+    for (size_t i = 0; i < 2097152; i++){
+        sprintf(key, "key%lu", i);
+        din_arr_append(arr, key, strlen(key) + 1);
+    }
+    for (size_t i = 0; i < 2097152; i++){
+        unsigned long int k = rand()%2097152;
+        sprintf(key, "key%lu", k);
+        if (strcmp(arr->array[k], key) != 0){
+            exit(666);
+        }
+    }*/
+}
+
+int zmain(void) {
+    freopen("input.txt", "r", stdin);
+    char line[MAX_LINE_LENGTH] = "", filtered_line[MAX_LINE_LENGTH] = "";
+    const char *action_add_ent = ACTION_ADD_ENT;
+    const char *action_del_ent = ACTION_DEL_ENT;
+    const char *action_add_rel = ACTION_ADD_REL;
+    const char *action_del_rel = ACTION_DEL_REL;
+    const char *action_report = ACTION_REPORT;
+
+    char *action = NULL;
+    char *param1 = NULL, *param2 = NULL, *param3 = NULL;
+
+    char **params = calloc(MAX_PARAMS, sizeof(char *));
+    if (params == NULL) {
+        exit(666);
+    }
+
+    while (fgets(line, MAX_LINE_LENGTH, stdin)) {
+        int n_par = 0;
+        size_t line_len = strlen(line);
+        size_t filt_len = 0;
+        for (size_t i = 0; i < line_len; i++) {
+            if (line[i] != '\"' && line[i] != '\n' && line[i] != '\r') {
+                filtered_line[filt_len] = line[i];
+                filt_len++;
+            }
+        }
+        filtered_line[filt_len] = '\0';
+        char *token = strtok(filtered_line, " ");
+        int valid = 1;
+        while (token != NULL) {
+            if (n_par >= MAX_PARAMS) {
+                valid = 0;
+                break;
+            }
+            params[n_par] = token;
+            token = strtok(NULL, " ");
+            n_par++;
+        }
+        if (valid) {
+
+            action = params[0];
+            param1 = params[1];
+            param2 = params[2];
+            param3 = params[3];
+            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
+
+            if (strcmp(action, action_add_ent) == 0) {
+                if (param1 != NULL && param2 == NULL && param3 == NULL) {
+                    printf("addent valida\n");
+                }
+            } else if (strcmp(action, action_del_ent) == 0) {
+                if (param1 != NULL && param2 == NULL && param3 == NULL) {
+                    printf("delent valida\n");
+                }
+            } else if (strcmp(action, action_add_rel) == 0) {
+                if (param1 != NULL && param2 != NULL && param3 != NULL) {
+                    printf("addrel valida\n");
+                }
+            } else if (strcmp(action, action_del_rel) == 0) {
+                if (param1 != NULL && param2 != NULL && param3 != NULL) {
+                    printf("delrel valida\n");
+                }
+            } else if (strcmp(action, action_report) == 0) {
+                if (param1 == NULL && param2 == NULL && param3 == NULL) {
+                    printf("report valida\n");
+                }
+            } else if (strcmp(action, "end") == 0) {
+                goto END;
+            }
+        }
+
+        memset(line, 0, MAX_LINE_LENGTH * sizeof(char));
+        memset(filtered_line, 0, MAX_LINE_LENGTH * sizeof(char));
+        memset(params, 0, MAX_PARAMS * sizeof(char *));
+    }
+    END:
     exit(0);
 }

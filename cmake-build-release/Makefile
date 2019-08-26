@@ -150,33 +150,6 @@ main.c.s:
 	$(MAKE) -f CMakeFiles/provafinaleapi.dir/build.make CMakeFiles/provafinaleapi.dir/main.c.s
 .PHONY : main.c.s
 
-xxhash.o: xxhash.c.o
-
-.PHONY : xxhash.o
-
-# target to build an object file
-xxhash.c.o:
-	$(MAKE) -f CMakeFiles/provafinaleapi.dir/build.make CMakeFiles/provafinaleapi.dir/xxhash.c.o
-.PHONY : xxhash.c.o
-
-xxhash.i: xxhash.c.i
-
-.PHONY : xxhash.i
-
-# target to preprocess a source file
-xxhash.c.i:
-	$(MAKE) -f CMakeFiles/provafinaleapi.dir/build.make CMakeFiles/provafinaleapi.dir/xxhash.c.i
-.PHONY : xxhash.c.i
-
-xxhash.s: xxhash.c.s
-
-.PHONY : xxhash.s
-
-# target to generate assembly for a file
-xxhash.c.s:
-	$(MAKE) -f CMakeFiles/provafinaleapi.dir/build.make CMakeFiles/provafinaleapi.dir/xxhash.c.s
-.PHONY : xxhash.c.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -189,9 +162,6 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
-	@echo "... xxhash.o"
-	@echo "... xxhash.i"
-	@echo "... xxhash.s"
 .PHONY : help
 
 

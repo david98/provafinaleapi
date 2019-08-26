@@ -83,15 +83,6 @@
 		<Unit filename="/Users/dvolta/CLionProjects/provafinaleapi/main.c">
 			<Option target="provafinaleapi"/>
 		</Unit>
-		<Unit filename="/Users/dvolta/CLionProjects/provafinaleapi/xxh3.h">
-			<Option target="provafinaleapi"/>
-		</Unit>
-		<Unit filename="/Users/dvolta/CLionProjects/provafinaleapi/xxhash.c">
-			<Option target="provafinaleapi"/>
-		</Unit>
-		<Unit filename="/Users/dvolta/CLionProjects/provafinaleapi/xxhash.h">
-			<Option target="provafinaleapi"/>
-		</Unit>
 		<Unit filename="/Users/dvolta/CLionProjects/provafinaleapi/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>
