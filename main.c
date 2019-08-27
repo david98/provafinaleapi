@@ -713,6 +713,7 @@ void add_rel(struct hash_table *mon_ent_ids, struct hash_table *mon_rel, struct 
     struct hash_table *rel_table = ht_get(rel_present_check, rel_name);
     if (rel_table != NULL) {
         if (ht_get(rel_table, key) != NULL) {
+            free(key);
             return;
         }
     } else {
@@ -728,6 +729,7 @@ void add_rel(struct hash_table *mon_ent_ids, struct hash_table *mon_rel, struct 
     int_arr_append(rel_hold->in, dest_id);
     int_arr_append(rel_hold->out, origin_id);
     ht_insert(rel_table, key, &dummy);
+    free(key);
 }
 
 void del_ent(struct hash_table *mon_ent_ids, struct din_arr *mon_ent_ids_reverse, struct hash_table *mon_rel,
