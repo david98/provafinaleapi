@@ -3,6 +3,3 @@
 
 CMakeFiles/provafinaleapi.dir/main.c.o: ../main.c
 
-CMakeFiles/provafinaleapi.dir/xxhash.c.o: ../xxh3.h
-CMakeFiles/provafinaleapi.dir/xxhash.c.o: ../xxhash.c
-

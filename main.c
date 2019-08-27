@@ -145,8 +145,7 @@ struct ht_item *ht_new_item(char *key, void *value) {
     } else {
         item->key = strdup(key);
         if (item->key == NULL) {
-            free(item);
-            exit(1);
+            exit(666);
         } else {
             item->value = value;
             item->hash = calcul_hash(key);
@@ -307,9 +306,9 @@ int ht_delete(struct hash_table *ht, char *key) {
 
 void print_keys(struct hash_table *ht) {
     printf("\n[");
-    for (int i = 0; i < ht->size; i++) {
+    for (size_t i = 0; i < ht->size; i++) {
         if (ht->array[i] != NULL && ht->array[i] != &HT_DELETED_ITEM)
-            printf(" '%s',", ht->array[i]->key);
+            printf("'%s',", ht->array[i]->key);
     }
     printf("]\n");
 }
@@ -348,14 +347,13 @@ void list_init(struct list *list) {
 struct list_node *list_create_new_node(void *elem, size_t elem_size) {
     struct list_node *node = malloc(sizeof(struct list_node));
     if (node == NULL) {
-        exit(1);
+        exit(666);
     }
     node->prev = NULL;
     node->next = NULL;
     node->elem = malloc(elem_size);
     if (node->elem == NULL) {
-        free(node);
-        exit(1);
+        exit(666);
     }
     memcpy(node->elem, elem, elem_size);
     return node;
@@ -497,6 +495,25 @@ void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b))
     qsort(arr->array, arr->next_free, sizeof(void *), cmp);
 }
 
+void din_arr_zero(struct din_arr *arr) {
+    for (size_t i = 0; i < arr->next_free; i++) {
+        free(arr->array[i]);
+        arr->array[i] = NULL;
+    }
+    arr->next_free = 0;
+    arr->size = 0;
+}
+
+void din_arr_print(struct din_arr *arr) {
+    printf("\n[");
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (arr->array[i] != NULL) {
+            printf("'%s', ", arr->array[i]);
+        }
+    }
+    printf("]\n");
+}
+
 void din_arr_destroy(struct din_arr *arr) {
     size_t i;
     for (i = 0; i < arr->size; i++) {
@@ -575,38 +592,37 @@ void del_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
         for (unsigned long int i = 0; i < mon_rel_list->next_free; i++) {
             char *cur_rel = mon_rel_list->array[i];
             rel_table = ht_get(mon_rel, cur_rel);
-            if (rel_table != NULL) {
-                /*
-                 * Delete all relationships towards entity_name
-                 * */
-                struct hash_table *dest_table = ht_get(rel_table, entity_name);
+            /*
+             * Delete all relationships towards entity_name
+             * */
+            struct hash_table *dest_table = ht_get(rel_table, entity_name);
+            if (dest_table != NULL) {
+                ht_destroy(dest_table);
+                ht_delete(rel_table, entity_name);
+            }
+            /*
+             * Delete all relationships from entity_name
+             * */
+            for (unsigned long int j = 0; j < mon_ent_list->next_free; j++) {
+                char *ent = mon_ent_list->array[j];
+                dest_table = ht_get(rel_table, ent);
                 if (dest_table != NULL) {
-                    ht_destroy(dest_table);
-                    ht_delete(rel_table, entity_name);
-                }
-                /*
-                 * Delete all relationships from entity_name
-                 * */
-                for (unsigned long int j = 0; j < mon_ent_list->next_free; j++) {
-                    char *ent = mon_ent_list->array[j];
-                    dest_table = ht_get(rel_table, ent);
-                    if (dest_table != NULL) {
-                        ht_delete(dest_table, entity_name);
-                        if (dest_table->count == 0) {
-                            ht_delete(rel_table, ent);
-                            ht_destroy(dest_table);
-                        }
+                    ht_delete(dest_table, entity_name);
+                    if (dest_table->count == 0) {
+                        ht_delete(rel_table, ent);
+                        ht_destroy(dest_table);
                     }
                 }
-                /*
-                 * If the relationship table is now empty,
-                 * mark it for removal from monitored relationships
-                 * */
-                if (rel_table->count == 0) {
-                    din_arr_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
-                }
+            }
+            /*
+             * If the relationship table is now empty,
+             * mark it for removal from monitored relationships
+             * */
+            if (rel_table->count == 0) {
+                din_arr_append(rels_to_remove, cur_rel, sizeof(char) * (strlen(cur_rel) + 1));
             }
         }
+
         /*
          * Remove all relationships marked for removal
          * */
@@ -673,6 +689,7 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
          * Iterate on the now ordered array of all
          * monitored relationships
          * */
+        int printed = 0;
         for (unsigned long int j = 0; j < mon_rel_list->next_free; j++) {
             char *cur_rel = mon_rel_list->array[j];
             /*
@@ -696,21 +713,28 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
 
                 }
             }
-            /*
-             * Sort best_ents_arr in ascending alphabetical order
-             */
-            qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
+            if (count > 0) {
+                printed = 1;
+                /*
+                 * Sort best_ents_arr in ascending alphabetical order
+                 */
+                qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
 
-            printf("\"%s\" ", cur_rel);
-            for (int i = 0; i < best_ents_arr_len; i++) {
-                printf("\"%s\" ", best_ents_arr[i]);
-            }
-            printf("%ld;", count);
-            if (j + 1 < mon_rel_list->next_free) {
-                printf(" ");
+                printf("\"%s\" ", cur_rel);
+                for (int i = 0; i < best_ents_arr_len; i++) {
+                    printf("\"%s\" ", best_ents_arr[i]);
+                }
+                printf("%ld;", count);
+                if (j + 1 < mon_rel_list->next_free) {
+                    printf(" ");
+                }
             }
         }
-        printf("\n");
+        if (printed) {
+            printf("\n");
+        } else {
+            printf("none\n");
+        }
     }
 
 }
@@ -822,7 +846,7 @@ int main(void) {
     exit(0);
 }
 
-int xmain() {
+int smain() {
     struct hash_table *ht = ht_new(256);
     char key[50] = "";
     for (size_t i = 0; i < 2097152; i++) {
@@ -832,12 +856,17 @@ int xmain() {
     for (size_t i = 0; i < 2097152; i++) {
         unsigned long int k = rand() % 2097152;
         sprintf(key, "key%lu", k);
-        if (strcmp(ht_get(ht, key), key) != 0) {
+        char *value = ht_get(ht, key);
+        if (value != NULL && strcmp(value, key) != 0) {
+            exit(666);
+        }
+        ht_delete(ht, key);
+        if (ht_get(ht, key) != NULL){
             exit(666);
         }
     }
 
-    /*struct din_arr *arr = din_arr_new(100);
+    struct din_arr *arr = din_arr_new(100);
     for (size_t i = 0; i < 2097152; i++){
         sprintf(key, "key%lu", i);
         din_arr_append(arr, key, strlen(key) + 1);
@@ -848,7 +877,7 @@ int xmain() {
         if (strcmp(arr->array[k], key) != 0){
             exit(666);
         }
-    }*/
+    }
 }
 
 int zmain(void) {
