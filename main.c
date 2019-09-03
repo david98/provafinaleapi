@@ -191,7 +191,7 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
          * we linear probe from index to the end and then from start to end
          * (we are guaranteed to find a free spot because we double table size
          *  whenever there's just one left */
-        index += j * j;
+        index += 1; //j * j;
         cur = ht->array[index];
         j++;
         if (index >= ht->size) {
@@ -248,7 +248,7 @@ void *ht_get(struct hash_table *ht, char *key) {
         if (item != &HT_DELETED_ITEM && hash == item->hash && strcmp(item->key, key) == 0) {
             return item->value;
         }
-        index += j * j;
+        index += 1; //j * j;
         j++;
         if (index >= ht->size) {
             index = 0;
@@ -296,7 +296,7 @@ int ht_delete(struct hash_table *ht, char *key) {
             ht->count--;
             return 1;
         }
-        index += j * j;
+        index += 1 ; //j * j;
         j++;
         if (index >= ht->size) {
             index = 0;
