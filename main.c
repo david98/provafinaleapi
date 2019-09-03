@@ -837,7 +837,6 @@ int main(void) {
         memset(params, 0, MAX_PARAMS * sizeof(char *));
     }
 
-    // free all memory (or not, lol)
     END:
     /*clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
@@ -865,97 +864,4 @@ int smain() {
             exit(666);
         }
     }
-
-    struct din_arr *arr = din_arr_new(100);
-    for (size_t i = 0; i < 2097152; i++){
-        sprintf(key, "key%lu", i);
-        din_arr_append(arr, key, strlen(key) + 1);
-    }
-    for (size_t i = 0; i < 2097152; i++){
-        unsigned long int k = rand()%2097152;
-        sprintf(key, "key%lu", k);
-        if (strcmp(arr->array[k], key) != 0){
-            exit(666);
-        }
-    }
-}
-
-int zmain(void) {
-    freopen("input.txt", "r", stdin);
-    char line[MAX_LINE_LENGTH] = "", filtered_line[MAX_LINE_LENGTH] = "";
-    const char *action_add_ent = ACTION_ADD_ENT;
-    const char *action_del_ent = ACTION_DEL_ENT;
-    const char *action_add_rel = ACTION_ADD_REL;
-    const char *action_del_rel = ACTION_DEL_REL;
-    const char *action_report = ACTION_REPORT;
-
-    char *action = NULL;
-    char *param1 = NULL, *param2 = NULL, *param3 = NULL;
-
-    char **params = calloc(MAX_PARAMS, sizeof(char *));
-    if (params == NULL) {
-        exit(666);
-    }
-
-    while (fgets(line, MAX_LINE_LENGTH, stdin)) {
-        int n_par = 0;
-        size_t line_len = strlen(line);
-        size_t filt_len = 0;
-        for (size_t i = 0; i < line_len; i++) {
-            if (line[i] != '\"' && line[i] != '\n' && line[i] != '\r') {
-                filtered_line[filt_len] = line[i];
-                filt_len++;
-            }
-        }
-        filtered_line[filt_len] = '\0';
-        char *token = strtok(filtered_line, " ");
-        int valid = 1;
-        while (token != NULL) {
-            if (n_par >= MAX_PARAMS) {
-                valid = 0;
-                break;
-            }
-            params[n_par] = token;
-            token = strtok(NULL, " ");
-            n_par++;
-        }
-        if (valid) {
-
-            action = params[0];
-            param1 = params[1];
-            param2 = params[2];
-            param3 = params[3];
-            //printf("command: %s %s %s %s\n", action, param1, param2, param3);
-
-            if (strcmp(action, action_add_ent) == 0) {
-                if (param1 != NULL && param2 == NULL && param3 == NULL) {
-                    printf("addent valida\n");
-                }
-            } else if (strcmp(action, action_del_ent) == 0) {
-                if (param1 != NULL && param2 == NULL && param3 == NULL) {
-                    printf("delent valida\n");
-                }
-            } else if (strcmp(action, action_add_rel) == 0) {
-                if (param1 != NULL && param2 != NULL && param3 != NULL) {
-                    printf("addrel valida\n");
-                }
-            } else if (strcmp(action, action_del_rel) == 0) {
-                if (param1 != NULL && param2 != NULL && param3 != NULL) {
-                    printf("delrel valida\n");
-                }
-            } else if (strcmp(action, action_report) == 0) {
-                if (param1 == NULL && param2 == NULL && param3 == NULL) {
-                    printf("report valida\n");
-                }
-            } else if (strcmp(action, "end") == 0) {
-                goto END;
-            }
-        }
-
-        memset(line, 0, MAX_LINE_LENGTH * sizeof(char));
-        memset(filtered_line, 0, MAX_LINE_LENGTH * sizeof(char));
-        memset(params, 0, MAX_PARAMS * sizeof(char *));
-    }
-    END:
-    exit(0);
 }
