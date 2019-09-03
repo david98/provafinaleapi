@@ -172,24 +172,27 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
     unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
     int i = 1;
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
-    while (i < max_double_hashing_rounds && ht->array[index] != NULL &&
-           ht->array[index] != &HT_DELETED_ITEM &&
-           ht->array[index]->hash != item->hash &&
-           strcmp(item->key, ht->array[index]->key) != 0) {
+    struct ht_item *cur = ht->array[index];
+    while (i < max_double_hashing_rounds && cur != NULL &&
+           (cur == &HT_DELETED_ITEM ||
+            (cur->hash != item->hash &&
+             strcmp(item->key, cur->key) != 0))) {
         index = ht_get_index(ht, item->key, i);
+        cur = ht->array[index];
         i++;
     }
 
     int j = 1;
-    while (ht->array[index] != NULL &&
-           ht->array[index] != &HT_DELETED_ITEM &&
-           ht->array[index]->hash != item->hash &&
-           strcmp(item->key, ht->array[index]->key) != 0) {
+    while (cur != NULL &&
+           (cur == &HT_DELETED_ITEM ||
+            (cur->hash != item->hash &&
+             strcmp(item->key, cur->key) != 0))) {
         /* we failed with double hashing, we switch to a different strategy:
          * we linear probe from index to the end and then from start to end
          * (we are guaranteed to find a free spot because we double table size
          *  whenever there's just one left */
         index += j * j;
+        cur = ht->array[index];
         j++;
         if (index >= ht->size) {
             index = 0;
@@ -536,6 +539,9 @@ void add_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_
 
 void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table *mon_ent,
              struct hash_table *mon_rel, struct din_arr *mon_rel_list) {
+    /*if (strcmp(dest_ent, "dotarono_interrogativi") == 0) {
+        printf("ALLARME!\n");
+    }*/
     /*
      * Check if both origin_ent and dest_ent
      * are being monitored
@@ -573,7 +579,15 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
         /*
          * We insert a flag in the table for dest_ent
          * */
-        ht_insert(dest_table, origin_ent, (void *) &dummy);
+        /*if (strcmp(dest_ent, "dotarono_interrogativi") == 0) {
+            printf("PREVIOUS COUNT: %lu\n", dest_table->count);
+            print_keys(dest_table);
+        }*/
+        int ret = ht_insert(dest_table, origin_ent, (void *) &dummy);
+        /*if (strcmp(dest_ent, "dotarono_interrogativi") == 0) {
+            printf("COUNT: %lu\n", dest_table->count);
+            print_keys(dest_table);
+        }*/
     }
 }
 
@@ -860,7 +874,7 @@ int smain() {
             exit(666);
         }
         ht_delete(ht, key);
-        if (ht_get(ht, key) != NULL){
+        if (ht_get(ht, key) != NULL) {
             exit(666);
         }
     }
