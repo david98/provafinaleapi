@@ -65,11 +65,106 @@ static unsigned long long inline calcul_hash(const void *buffer) {
     return djb2(buffer);
 }
 
+struct din_arr {
+    void **array;
+    unsigned long int next_free;
+    size_t size;
+};
+
+struct din_arr *din_arr_new(size_t initial_size) {
+    struct din_arr *arr = malloc(sizeof(struct din_arr));
+    if (arr == NULL) {
+        exit(666);
+    }
+    arr->array = calloc(initial_size, sizeof(void *));
+    if (arr->array == NULL) {
+        exit(666);
+    }
+    arr->size = initial_size;
+    arr->next_free = 0;
+    return arr;
+}
+
+size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
+    if (new_size <= arr->size) {
+        return arr->size;
+    }
+    arr->array = realloc(arr->array, sizeof(void *) * new_size);
+    if (arr->array == NULL) {
+        exit(666);
+    }
+    arr->size = new_size;
+    return new_size;
+}
+
+void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
+    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
+        size_t old_size = arr->size;
+        size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
+        if (new_size <= old_size) {
+            exit(666);
+        }
+    }
+    arr->array[arr->next_free] = malloc(elem_size);
+    memcpy(arr->array[arr->next_free], elem, elem_size);
+    arr->next_free++;
+}
+
+void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (cmp(arr->array[i], elem) == 0) {
+            free(arr->array[i]);
+            arr->array[i] = arr->array[--arr->next_free];
+        }
+    }
+}
+
+void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)) {
+    qsort(arr->array, arr->next_free, sizeof(void *), cmp);
+}
+
+void din_arr_zero(struct din_arr *arr) {
+    for (size_t i = 0; i < arr->next_free; i++) {
+        free(arr->array[i]);
+        arr->array[i] = NULL;
+    }
+    arr->next_free = 0;
+    arr->size = 0;
+}
+
+void din_arr_print(struct din_arr *arr) {
+    printf("\n[");
+    for (size_t i = 0; i < arr->next_free; i++) {
+        if (arr->array[i] != NULL) {
+            printf("'%s', ", arr->array[i]);
+        }
+    }
+    printf("]\n");
+}
+
+void din_arr_destroy(struct din_arr *arr) {
+    size_t i;
+    for (i = 0; i < arr->size; i++) {
+        free(arr->array[i]);
+    }
+    free(arr->array);
+    free(arr);
+}
+
+void din_arr_soft_destroy(struct din_arr *arr) {
+    free(arr->array);
+    free(arr);
+}
+
 struct ht_item {
     char *key;
     unsigned long long int hash;
     void *value;
 };
+
+void ht_item_destroy(struct ht_item *item) {
+    free(item->key);
+}
 
 static const struct ht_item HT_DELETED_ITEM = {NULL, 0, NULL};
 
@@ -116,41 +211,61 @@ int ht_insert_no_resize(struct hash_table *ht, char *key, void *elem);
 
 void ht_destroy(struct hash_table *ht);
 
+void ht_rehash_in_place(struct hash_table *ht) {
+    struct ht_item **items_to_reinsert = malloc(sizeof(struct ht_item *) * (ht->count + 1));
+    size_t n = 0;
+    if (items_to_reinsert == NULL) {
+        exit(666);
+    }
+    for (size_t i = 0; i < ht->size; i++) {
+        if (ht->array[i] != NULL && ht->array[i] != &HT_DELETED_ITEM) {
+            items_to_reinsert[n] = ht->array[i];
+            n++;
+        }
+        ht->array[i] = NULL;
+    }
+    ht->count = 0;
+    for (size_t i = 0; i < n - 1; i++) {
+        struct ht_item *item = items_to_reinsert[i];
+        ht_insert_no_resize(ht, item->key, item->value);
+        ht_item_destroy(item);
+    }
+    free(items_to_reinsert);
+}
+
 void ht_resize(struct hash_table *ht, size_t new_size) {
     struct ht_item **old_array = ht->array;
     ht->array = calloc(new_size, sizeof(struct ht_item *));
     if (ht->array == NULL) {
-        ht_destroy(ht);
-        exit(1);
-    } else {
-        size_t old_size = ht->size;
-        ht->size = new_size;
-        unsigned long int old_count = ht->count;
-        for (size_t i = 0; i < old_size; i++) {
-            if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM) {
-                ht_insert_no_resize(ht, old_array[i]->key, old_array[i]->value);
-                free(old_array[i]->key);
-                free(old_array[i]);
-            }
-        }
-        ht->count = old_count;
-        free(old_array);
+        exit(666);
     }
+    size_t old_size = ht->size;
+    ht->size = new_size;
+    ht->count = 0;
+    for (size_t i = 0; i < old_size; i++) {
+        if (old_array[i] != NULL && old_array[i] != &HT_DELETED_ITEM) {
+            ht_insert_no_resize(ht, old_array[i]->key, old_array[i]->value);
+            free(old_array[i]->key);
+            free(old_array[i]);
+        }
+    }
+    free(old_array);
+
 }
 
 struct ht_item *ht_new_item(char *key, void *value) {
     struct ht_item *item = malloc(sizeof(struct ht_item));
     if (item == NULL) {
-        exit(1);
-    } else {
-        item->key = strdup(key);
-        if (item->key == NULL) {
-            exit(666);
-        } else {
-            item->value = value;
-            item->hash = calcul_hash(key);
-        }
+        exit(666);
     }
+    item->key = strdup(key);
+    if (item->key == NULL) {
+        exit(666);
+    }
+
+    item->value = value;
+    item->hash = calcul_hash(key);
+
     return item;
 }
 
@@ -174,9 +289,9 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
     // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
     struct ht_item *cur = ht->array[index];
     while (i < max_double_hashing_rounds && cur != NULL &&
-           (cur == &HT_DELETED_ITEM ||
-            (cur->hash != item->hash &&
-             strcmp(item->key, cur->key) != 0))) {
+           cur != &HT_DELETED_ITEM &&
+           cur->hash != item->hash &&
+           strcmp(item->key, cur->key) != 0) {
         index = ht_get_index(ht, item->key, i);
         cur = ht->array[index];
         i++;
@@ -184,9 +299,9 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
 
     int j = 1;
     while (cur != NULL &&
-           (cur == &HT_DELETED_ITEM ||
-            (cur->hash != item->hash &&
-             strcmp(item->key, cur->key) != 0))) {
+           cur != &HT_DELETED_ITEM &&
+           cur->hash != item->hash &&
+           strcmp(item->key, cur->key) != 0) {
         /* we failed with double hashing, we switch to a different strategy:
          * we linear probe from index to the end and then from start to end
          * (we are guaranteed to find a free spot because we double table size
@@ -198,14 +313,24 @@ int __ht_insert(struct hash_table *ht, char *key, void *elem, short int resizing
             index = 0;
         }
     }
-    if (ht->array[index] != NULL && ht->array[index] != &HT_DELETED_ITEM) {
-        return_value = 1;
-        free(ht->array[index]->key);
-        free(ht->array[index]);
+    int rehash = 0;
+    if (ht->array[index] == &HT_DELETED_ITEM) {
+        rehash = 1;
+    }
+    if (ht->array[index] != NULL) {
+        if (ht->array[index] != &HT_DELETED_ITEM) {
+            return_value = 1;
+            free(ht->array[index]->key);
+            free(ht->array[index]);
+        }
     } else {
         ht->count++;
     }
     ht->array[index] = item;
+    if (rehash) {
+        ht_rehash_in_place(ht);
+        //ht_resize(ht, ht->size);
+    }
     return return_value;
 }
 
@@ -268,8 +393,7 @@ int ht_delete(struct hash_table *ht, char *key) {
     unsigned long int hash = calcul_hash(key);
     int i = 1;
     unsigned long int max_double_hashing_rounds = ht->size / DOUBLE_HASHING_FACTOR;
-
-    // try MAX_DOUBLE_HASHING_ROUNDS times to find a free spot with double hashing
+    short int deleted = 0;
     while (i < max_double_hashing_rounds && ht->array[index] != NULL) {
         if (ht->array[index] != &HT_DELETED_ITEM && ht->array[index]->hash == hash &&
             strcmp(key, ht->array[index]->key) == 0) {
@@ -278,7 +402,7 @@ int ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            return 1;
+            deleted = 1;
         }
         index = ht_get_index(ht, key, i);
         i++;
@@ -294,9 +418,9 @@ int ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            return 1;
+            deleted = 1;
         }
-        index += 1 ; //j * j;
+        index += 1; //j * j;
         j++;
         if (index >= ht->size) {
             index = 0;
@@ -304,7 +428,7 @@ int ht_delete(struct hash_table *ht, char *key) {
         }
     }
 
-    return 0;
+    return deleted;
 }
 
 void print_keys(struct hash_table *ht) {
@@ -438,91 +562,6 @@ void list_destroy(struct list *list) {
         cur = next;
     }
     free(list);
-}
-
-struct din_arr {
-    void **array;
-    unsigned long int next_free;
-    size_t size;
-};
-
-struct din_arr *din_arr_new(size_t initial_size) {
-    struct din_arr *arr = malloc(sizeof(struct din_arr));
-    if (arr == NULL) {
-        exit(666);
-    }
-    arr->array = calloc(initial_size, sizeof(void *));
-    if (arr->array == NULL) {
-        exit(666);
-    }
-    arr->size = initial_size;
-    arr->next_free = 0;
-    return arr;
-}
-
-size_t din_arr_resize(struct din_arr *arr, size_t new_size) {
-    if (new_size <= arr->size) {
-        return arr->size;
-    }
-    arr->array = realloc(arr->array, sizeof(void *) * new_size);
-    if (arr->array == NULL) {
-        exit(666);
-    }
-    arr->size = new_size;
-    return new_size;
-}
-
-void din_arr_append(struct din_arr *arr, void *elem, size_t elem_size) {
-    if (arr->next_free >= arr->size * DA_RESIZE_THRESHOLD_PERCENTAGE / 100) {
-        size_t old_size = arr->size;
-        size_t new_size = din_arr_resize(arr, arr->size * DA_GROWTH_FACTOR);
-        if (new_size <= old_size) {
-            exit(666);
-        }
-    }
-    arr->array[arr->next_free] = malloc(elem_size);
-    memcpy(arr->array[arr->next_free], elem, elem_size);
-    arr->next_free++;
-}
-
-void din_arr_remove(struct din_arr *arr, void *elem, int (*cmp)(void *, void *)) {
-    for (size_t i = 0; i < arr->next_free; i++) {
-        if (cmp(arr->array[i], elem) == 0) {
-            free(arr->array[i]);
-            arr->array[i] = arr->array[--arr->next_free];
-        }
-    }
-}
-
-void din_arr_sort(struct din_arr *arr, int (*cmp)(const void *a, const void *b)) {
-    qsort(arr->array, arr->next_free, sizeof(void *), cmp);
-}
-
-void din_arr_zero(struct din_arr *arr) {
-    for (size_t i = 0; i < arr->next_free; i++) {
-        free(arr->array[i]);
-        arr->array[i] = NULL;
-    }
-    arr->next_free = 0;
-    arr->size = 0;
-}
-
-void din_arr_print(struct din_arr *arr) {
-    printf("\n[");
-    for (size_t i = 0; i < arr->next_free; i++) {
-        if (arr->array[i] != NULL) {
-            printf("'%s', ", arr->array[i]);
-        }
-    }
-    printf("]\n");
-}
-
-void din_arr_destroy(struct din_arr *arr) {
-    size_t i;
-    for (i = 0; i < arr->size; i++) {
-        free(arr->array[i]);
-    }
-    free(arr);
 }
 
 void add_ent(char *entity_name, struct hash_table *mon_ent, struct din_arr *mon_ent_list) {
