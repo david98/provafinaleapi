@@ -6,7 +6,7 @@
 
 #define MAX_LINE_LENGTH 200
 #define INITIAL_MON_REL_SIZE 512
-#define INITIAL_MON_ENT_SIZE 2097152
+#define INITIAL_MON_ENT_SIZE 524288
 #define INITIAL_HASH_TABLE_SIZE 256
 #define HT_RESIZE_THRESHOLD_PERCENTAGE 50
 
@@ -897,25 +897,4 @@ int main(void) {
     printf("%f ms", (double)delta_us/1000);*/
 
     exit(0);
-}
-
-int smain() {
-    struct hash_table *ht = ht_new(256);
-    char key[50] = "";
-    for (size_t i = 0; i < 2097152; i++) {
-        sprintf(key, "key%lu", i);
-        ht_insert(ht, key, key);
-    }
-    for (size_t i = 0; i < 2097152; i++) {
-        unsigned long int k = rand() % 2097152;
-        sprintf(key, "key%lu", k);
-        char *value = ht_get(ht, key);
-        if (value != NULL && strcmp(value, key) != 0) {
-            exit(666);
-        }
-        ht_delete(ht, key);
-        if (ht_get(ht, key) != NULL) {
-            exit(666);
-        }
-    }
 }
