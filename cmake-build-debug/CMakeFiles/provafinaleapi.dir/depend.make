@@ -3,5 +3,3 @@
 
 CMakeFiles/provafinaleapi.dir/main.c.o: ../main.c
 
-CMakeFiles/provafinaleapi.dir/main2.c.o: ../main2.c
-

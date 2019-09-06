@@ -225,10 +225,11 @@ void ht_rehash_in_place(struct hash_table *ht) {
         ht->array[i] = NULL;
     }
     ht->count = 0;
-    for (size_t i = 0; i < n - 1; i++) {
+    for (size_t i = 0; i < n; i++) {
         struct ht_item *item = items_to_reinsert[i];
         ht_insert_no_resize(ht, item->key, item->value);
         ht_item_destroy(item);
+        free(items_to_reinsert[i]);
     }
     free(items_to_reinsert);
 }
@@ -402,7 +403,7 @@ int ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            deleted = 1;
+            return 1;
         }
         index = ht_get_index(ht, key, i);
         i++;
@@ -418,7 +419,7 @@ int ht_delete(struct hash_table *ht, char *key) {
             free(ht->array[index]);
             ht->array[index] = &HT_DELETED_ITEM;
             ht->count--;
-            deleted = 1;
+            return 1;
         }
         index += 1; //j * j;
         j++;
