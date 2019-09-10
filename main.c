@@ -640,12 +640,13 @@ void add_rel(char *origin_ent, char *dest_ent, char *rel_name, struct hash_table
         /*
          * We insert a flag in the table for dest_ent
          * */
+        size_t old_count = dest_table->count;
         int ret = ht_insert(dest_table, origin_ent, (void *) &dummy);
         struct report_cache *cache_entry = ht_get(cache, rel_name);
         if (cache_entry != NULL && !ret) {
-            if (dest_table->count == cache_entry->count){
+            if (dest_table->count == cache_entry->count && old_count < dest_table->count) {
                 din_arr_append(cache_entry->ents, strdup(dest_ent), sizeof(char) * (strlen(dest_ent) + 1));
-            } else if (dest_table->count > cache_entry->count){
+            } else if (dest_table->count > cache_entry->count) {
                 din_arr_destroy(cache_entry->ents);
                 cache_entry->ents = din_arr_new(1);
                 din_arr_append(cache_entry->ents, strdup(dest_ent), sizeof(char) * (strlen(dest_ent) + 1));
@@ -744,32 +745,39 @@ void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
              * to dest_ent, delete it
              * */
 
-            ht_delete(dest_table, origin_ent);
-            struct report_cache *cache_entry = ht_get(cache, rel_name);
-            if (cache_entry != NULL) {
-                if (dest_table->count + 1 == cache_entry->count){
-                    din_arr_remove(cache_entry->ents, dest_ent, strcmp);
-                    if (cache_entry->ents->next_free == 0){
-                        report_cache_destroy(cache_entry);
-                        ht_delete(cache, rel_name);
+            int ret = ht_delete(dest_table, origin_ent);
+            if (ret) {
+                struct report_cache *cache_entry = ht_get(cache, rel_name);
+                if (cache_entry != NULL) {
+                    if (dest_table->count == cache_entry->count - 1) {
+                        din_arr_remove(cache_entry->ents, dest_ent, strcmp);
+                        if (cache_entry->ents->next_free == 0) {
+                            report_cache_destroy(cache_entry);
+                            ht_delete(cache, rel_name);
+                            cache_entry = NULL;
+                        }
                     }
                 }
-            }
-            /*
-             * If there's no other "arrow" going to dest_ent,
-             * remove it from rel_table
-             * */
-            if (dest_table->count == 0) {
-                ht_destroy(dest_table);
-                ht_delete(rel_table, dest_ent);
                 /*
-                 * If rel_table is now empty (there was just that one "arrow"),
-                 * delete it and remove rel_name from mon_rel
+                 * If there's no other "arrow" going to dest_ent,
+                 * remove it from rel_table
                  * */
-                if (rel_table->count == 0) {
-                    ht_destroy(rel_table);
-                    ht_delete(mon_rel, rel_name);
-                    din_arr_remove(mon_rel_list, rel_name, strcmp);
+                if (dest_table->count == 0) {
+                    ht_destroy(dest_table);
+                    ht_delete(rel_table, dest_ent);
+                    /*
+                     * If rel_table is now empty (there was just that one "arrow"),
+                     * delete it and remove rel_name from mon_rel
+                     * */
+                    if (rel_table->count == 0) {
+                        ht_destroy(rel_table);
+                        ht_delete(mon_rel, rel_name);
+                        din_arr_remove(mon_rel_list, rel_name, strcmp);
+                        if (cache_entry != NULL) {
+                            report_cache_destroy(cache_entry);
+                            ht_delete(cache, rel_name);
+                        }
+                    }
                 }
             }
         }
@@ -798,9 +806,7 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
                 din_arr_sort(cache_entry->ents, compare_strings);
                 printf("\"%s\" ", cur_rel);
                 for (int i = 0; i < cache_entry->ents->next_free; i++) {
-                    if (cache_entry->ents->array[i] != NULL) {
-                        printf("\"%s\" ", cache_entry->ents->array[i]);
-                    }
+                    printf("\"%s\" ", cache_entry->ents->array[i]);
                 }
                 printf("%ld;", cache_entry->count);
                 if (j + 1 < mon_rel_list->next_free) {
