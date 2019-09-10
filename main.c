@@ -787,7 +787,7 @@ void del_rel(char *origin_ent, char *dest_ent, char *rel_name,
 void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din_arr *mon_rel_list,
             struct hash_table *cache) {
     if (mon_rel_list->next_free == 0) {
-        printf("none\n");
+        puts("none");
     } else {
         /*
          * Sort mon_rel_list in ascending alphabetical order
@@ -804,13 +804,19 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
             struct report_cache *cache_entry = ht_get(cache, cur_rel);
             if (cache_entry != NULL) {
                 din_arr_sort(cache_entry->ents, compare_strings);
-                printf("\"%s\" ", cur_rel);
+                putc('"', stdout);
+                fputs(cur_rel, stdout);
+                putc('"', stdout);
+                putc(' ', stdout);
                 for (int i = 0; i < cache_entry->ents->next_free; i++) {
-                    printf("\"%s\" ", cache_entry->ents->array[i]);
+                    putc('"', stdout);
+                    fputs(cache_entry->ents->array[i], stdout);
+                    putc('"', stdout);
+                    putc(' ', stdout);
                 }
                 printf("%ld;", cache_entry->count);
                 if (j + 1 < mon_rel_list->next_free) {
-                    printf(" ");
+                    putc(' ', stdout);
                 }
                 printed = 1;
                 continue;
@@ -843,9 +849,15 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
                  */
                 qsort(best_ents_arr, best_ents_arr_len, sizeof(char *), compare_strings);
                 cache_entry = report_cache_new(best_ents_arr_len);
-                printf("\"%s\" ", cur_rel);
+                putc('"', stdout);
+                fputs(cur_rel, stdout);
+                putc('"', stdout);
+                putc(' ', stdout);
                 for (int i = 0; i < best_ents_arr_len; i++) {
-                    printf("\"%s\" ", best_ents_arr[i]);
+                    putc('"', stdout);
+                    fputs(best_ents_arr[i], stdout);
+                    putc('"', stdout);
+                    putc(' ', stdout);
                     din_arr_append(cache_entry->ents, best_ents_arr[i],
                                    sizeof(char) * (strlen(best_ents_arr[i]) + 1));
                 }
@@ -853,14 +865,14 @@ void report(struct din_arr *mon_ent_list, struct hash_table *mon_rel, struct din
                 cache_entry->count = count;
                 ht_insert(cache, cur_rel, cache_entry);
                 if (j + 1 < mon_rel_list->next_free) {
-                    printf(" ");
+                    putc(' ', stdout);
                 }
             }
         }
         if (printed) {
-            printf("\n");
+            putc('\n', stdout);
         } else {
-            printf("none\n");
+            puts("none");
         }
     }
 
